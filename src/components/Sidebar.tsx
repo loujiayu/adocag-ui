@@ -1,3 +1,4 @@
+import React from 'react';
 import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
 import { 
   Notebook24Regular,
@@ -16,6 +17,23 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     gap: '4px',
     ...shorthands.padding('12px', '8px'),
+  },
+  logo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    ...shorthands.padding('12px', '16px'),
+    marginBottom: '12px',
+    '& span': {
+      fontSize: tokens.fontSizeBase500,
+      fontWeight: tokens.fontWeightSemibold,
+    },
+  },
+  nav: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    flex: 1,
   },
   navItem: {
     display: 'flex',
@@ -48,9 +66,16 @@ const useStyles = makeStyles({
       backgroundColor: 'var(--colorNeutralBackground3Selected)',
     },
   },
+  footer: {
+    marginTop: 'auto',
+    ...shorthands.padding('12px', '16px'),
+    borderTop: `1px solid var(--colorNeutralStroke1)`,
+  },
 });
 
-const Sidebar = () => {
+interface SidebarProps {}
+
+const Sidebar: React.FC<SidebarProps> = () => {
   const styles = useStyles();
 
   const menuItems = [

@@ -1,4 +1,4 @@
-import { useState, useEffect, KeyboardEvent, ChangeEvent, useCallback, memo } from 'react';
+import React, { useState, useEffect, KeyboardEvent, ChangeEvent, useCallback, memo } from 'react';
 import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
 import { Button, Input, Text } from '@fluentui/react-components';
 import { 
@@ -11,6 +11,7 @@ import {
 import { useSearchStore } from '../store/searchStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { getApiUrl } from '../config';
 
 const useStyles = makeStyles({
   chatBox: {
@@ -281,12 +282,14 @@ interface Message {
   saved?: boolean;
 }
 
-const MessageComponent = memo(({ message, index, onSave, styles }: {
+interface MessageComponentProps {
   message: Message;
   index: number;
   onSave: (index: number) => void;
   styles: any;
-}) => (
+}
+
+const MessageComponent: React.FC<MessageComponentProps> = memo(({ message, index, onSave, styles }) => (
   <div className={styles.messageWrapper} data-testid={`message-${index}`}>
     {message.role === 'assistant' && (
       <div className={styles.avatar} data-testid={`assistant-avatar-${index}`}>
@@ -330,7 +333,7 @@ interface InputAreaProps {
   setIsDeepResearch: (isDeep: boolean) => void;
 }
 
-const InputArea = memo(({ onSendMessage, isLoading, isDeepResearch, setIsDeepResearch }: InputAreaProps) => {
+const InputArea: React.FC<InputAreaProps> = memo(({ onSendMessage, isLoading, isDeepResearch, setIsDeepResearch }) => {
   const styles = useStyles();
   const [inputValue, setInputValue] = useState('');
 
@@ -395,7 +398,9 @@ const InputArea = memo(({ onSendMessage, isLoading, isDeepResearch, setIsDeepRes
   );
 });
 
-const ChatBox = () => {
+interface ChatBoxProps {}
+
+const ChatBox: React.FC<ChatBoxProps> = () => {
   const styles = useStyles();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -431,7 +436,7 @@ const ChatBox = () => {
 
     try {
       // Build URL with query parameters
-      const url = new URL('http://localhost:5000/api/chat');
+      const url = new URL(getApiUrl('chat'));
       
       // Add query parameters
       if (searchQuery || message) {

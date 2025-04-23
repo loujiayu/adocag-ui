@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getApiUrl } from '../config';
 
 // Helper functions for localStorage
 const getStorageItem = <T>(key: string, defaultValue: T): T => {
@@ -138,7 +139,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const url = new URL('http://localhost:5000/api/search/chat');
+      const url = new URL(getApiUrl('search'));
       
       // Add common parameters
       url.searchParams.append('query', searchQuery);

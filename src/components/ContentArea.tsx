@@ -128,7 +128,11 @@ const useStyles = makeStyles({
   },
 });
 
-const ContentArea: React.FC = () => {
+interface ContentAreaProps {
+  // Define props here if any are needed
+}
+
+const ContentArea: React.FC<ContentAreaProps> = () => {
   const styles = useStyles();
   const { 
     searchQuery, 
@@ -166,16 +170,22 @@ const ContentArea: React.FC = () => {
     setSelectedRepositories(data.selectedOptions as Repository[]);
   };
 
-  const handleApiProviderChange = (_ev: any, data: { optionValue: string }) => {
-    setApiProvider(data.optionValue as ApiProvider);
+  const handleApiProviderChange = (_ev: any, data: { optionValue?: string }) => {
+    if (data.optionValue) {
+      setApiProvider(data.optionValue as ApiProvider);
+    }
   };
 
-  const handleAzureModelChange = (_ev: any, data: { optionValue: string }) => {
-    setAzureOpenAIModel(data.optionValue);
+  const handleAzureModelChange = (_ev: any, data: { optionValue?: string }) => {
+    if (data.optionValue) {
+      setAzureOpenAIModel(data.optionValue);
+    }
   };
 
-  const handleGcpModelChange = (_ev: any, data: { optionValue: string }) => {
-    setGcpModel(data.optionValue);
+  const handleGcpModelChange = (_ev: any, data: { optionValue?: string }) => {
+    if (data.optionValue) {
+      setGcpModel(data.optionValue);
+    }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
