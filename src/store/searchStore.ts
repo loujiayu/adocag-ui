@@ -85,7 +85,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   gcpProjectName: getStorageItem<string>('searchStore.gcpProjectName', ''),
   gcpRegion: getStorageItem<string>('searchStore.gcpRegion', ''),
   gcpModel: getStorageItem<string>('searchStore.gcpModel', ''),
-  apiProvider: getStorageItem<ApiProvider>('searchStore.apiProvider', 'Azure OpenAI'),
+  apiProvider: getStorageItem<ApiProvider>('searchStore.apiProvider', 'Built In'),
   azureOpenAIApiKey: getStorageItem<string>('searchStore.azureOpenAIApiKey', ''),
   azureOpenAIEndpoint: getStorageItem<string>('searchStore.azureOpenAIEndpoint', ''),
   azureOpenAIModel: getStorageItem<string>('searchStore.azureOpenAIModel', ''),
