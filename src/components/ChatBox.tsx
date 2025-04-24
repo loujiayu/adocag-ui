@@ -186,6 +186,16 @@ const useStyles = makeStyles({
     backgroundColor: 'var(--colorStatusDangerBackground1)',
     fontSize: tokens.fontSizeBase200,
   },
+  processingMessage: {
+    ...shorthands.padding('8px', '16px'),
+    backgroundColor: 'var(--colorNeutralBackground3)',
+    color: 'var(--colorNeutralForeground2)',
+    fontSize: tokens.fontSizeBase200,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    borderTop: '1px solid var(--colorNeutralStroke1)',
+  },
   '@keyframes fadeIn': {
     from: {
       opacity: 0,
@@ -331,9 +341,10 @@ interface InputAreaProps {
   isLoading: boolean;
   isDeepResearch: boolean;
   setIsDeepResearch: (isDeep: boolean) => void;
+  processingMessage: string;
 }
 
-const InputArea: React.FC<InputAreaProps> = memo(({ onSendMessage, isLoading, isDeepResearch, setIsDeepResearch }) => {
+const InputArea: React.FC<InputAreaProps> = memo(({ onSendMessage, isLoading, isDeepResearch, setIsDeepResearch, processingMessage }) => {
   const styles = useStyles();
   const [inputValue, setInputValue] = useState('');
 
@@ -364,6 +375,11 @@ const InputArea: React.FC<InputAreaProps> = memo(({ onSendMessage, isLoading, is
 
   return (
     <div className={styles.inputArea} data-testid="input-area">
+      {processingMessage && (
+        <div className={styles.processingMessage} data-testid="processing-message">
+          {processingMessage}
+        </div>
+      )}
       <div className={styles.inputRow}>
         <Input
           className={styles.input}
@@ -406,6 +422,7 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeepResearch, setIsDeepResearch] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState<string>('');
   const { 
     results, 
     searchQuery, 
@@ -483,10 +500,11 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
         throw new Error('No response body received');
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      // setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let streamedContent = '';
+      let isFirstMessage = true;
 
       while (true) {
         const { value, done } = await reader.read();
@@ -501,6 +519,10 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
           try {
             const { event, data } = JSON.parse(line);
             if (event === 'message' && data) {
+              if (isFirstMessage) {
+                setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+                isFirstMessage = false;
+              }
               streamedContent += data.content;
               
               setMessages(prev => {
@@ -513,8 +535,12 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
               });
 
               if (data.done) {
+                setProcessingMessage(''); // Clear processing message when done
                 return;
               }
+            } else if (event === 'processing' && data) {
+              // Update the processing message from the server
+              setProcessingMessage(data.message);
             } else if (event === 'error' && data) {
               setError(data.content || 'An error occurred during the conversation');
               setMessages(prev => prev.slice(0, -1)); // Remove the empty assistant message
@@ -544,7 +570,7 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
       return newMessages;
     });
   }, []);
-
+  console.log('messages', messages);
   return (
     <div className={styles.chatBox} data-testid="chat-box">
       <div className={styles.chatHeader} data-testid="chat-header">
@@ -583,6 +609,7 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
         isLoading={isLoading}
         isDeepResearch={isDeepResearch}
         setIsDeepResearch={setIsDeepResearch}
+        processingMessage={processingMessage}
       />
     </div>
   );

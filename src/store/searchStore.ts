@@ -206,7 +206,6 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 
             if (event === 'message' && data) {
               streamedContent += data.content;
-              console.log('streamedContent', streamedContent);
               set({ results: { response: streamedContent, prompt: prompt } });
               
               if (data.done) {
