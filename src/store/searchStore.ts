@@ -83,7 +83,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   isLoading: false,
   error: null,
   processingMessage: 'Searching...',
-  selectedRepositories: getStorageItem<Repository[]>('searchStore.selectedRepositories', ['AdsAppsDB']),
+  selectedRepositories: getStorageItem<Repository[]>('searchStore.selectedRepositories', ['AdsAppsCampaignUI']),
   gcpProjectName: getStorageItem<string>('searchStore.gcpProjectName', ''),
   gcpRegion: getStorageItem<string>('searchStore.gcpRegion', ''),
   gcpModel: getStorageItem<string>('searchStore.gcpModel', ''),

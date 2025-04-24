@@ -161,10 +161,9 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
 
   const suggestions = [
     "Campaign",
-    "Asset",
+    "Ad",
     "Video",
     "Image",
-    "Report"
   ];
 
   const handleRepositoryChange = (_ev: any, data: { selectedOptions: string[] }) => {
