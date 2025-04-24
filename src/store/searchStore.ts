@@ -56,6 +56,7 @@ interface SearchStore {
   results: SearchResult | undefined;
   isLoading: boolean;
   error: string | null;
+  processingMessage: string;
   selectedRepositories: Repository[];
   gcpProjectName: string;
   gcpRegion: string;
@@ -81,6 +82,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   results: undefined,
   isLoading: false,
   error: null,
+  processingMessage: 'Searching...',
   selectedRepositories: getStorageItem<Repository[]>('searchStore.selectedRepositories', ['AdsAppsDB']),
   gcpProjectName: getStorageItem<string>('searchStore.gcpProjectName', ''),
   gcpRegion: getStorageItem<string>('searchStore.gcpRegion', ''),
@@ -144,7 +146,9 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
       // Add common parameters
       url.searchParams.append('query', searchQuery);
       if (selectedRepositories.length > 0) {
-        url.searchParams.append('repositories', selectedRepositories.join(','));
+        selectedRepositories.forEach(repo => {
+          url.searchParams.append('repositories', repo);
+        });
       }
       url.searchParams.append('api_provider', apiProvider);
       
@@ -159,12 +163,77 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
         if (gcpModel) url.searchParams.append('gcp_model', gcpModel);
       }
       
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          repositories: selectedRepositories
+        }),
+      });
+
       if (!response.ok) {
         throw new Error('Search failed');
       }
-      const data = await response.json();
-      set({ results: data, isLoading: false });
+
+      if (!response.body) {
+        throw new Error('No response body received');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let streamedContent = '';
+      let prompt = '';
+      let incompleteLine = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          
+          const parsedLine = incompleteLine + line;
+          try {
+            const { event, data } = JSON.parse(parsedLine);
+            incompleteLine = '';
+
+            if (event === 'message' && data) {
+              streamedContent += data.content;
+              console.log('streamedContent', streamedContent);
+              set({ results: { response: streamedContent, prompt: prompt } });
+              
+              if (data.done) {
+                // Search completed
+                break;
+              }
+            } else if (event === 'prompt') {
+              prompt = data.content;
+              set({ processingMessage: data.message });
+            } else if (event === 'processing' && data) {
+              // Update the processing message when status is 'processing'
+              set({ processingMessage: data.message });
+            } else if (event === 'error' && data) {
+              set({ 
+                error: data.message || 'An error occurred during the search',
+                isLoading: false 
+              });
+              return;
+            }
+          } catch (e) {
+            incompleteLine += line;
+            console.warn('inmcomplete line');
+          }
+        }
+      }
+
+      set({ isLoading: false });
     } catch (err) {
       set({ 
         error: err instanceof Error ? err.message : 'An error occurred while searching',

@@ -146,6 +146,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
     azureOpenAIApiKey,
     azureOpenAIEndpoint,
     azureOpenAIModel,
+    processingMessage,
     setSearchQuery, 
     setSelectedRepositories,
     setGcpProjectName,
@@ -317,7 +318,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
       <div className={styles.results} data-testid="content-main">
         {isLoading && (
           <div className={styles.loadingState}>
-            <Spinner size="small" label="Searching..." />
+            <Spinner size="small" label={processingMessage || "Searching..."} />
           </div>
         )}
         
