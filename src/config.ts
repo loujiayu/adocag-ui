@@ -1,5 +1,5 @@
 // Environment-based configuration
-const PRODUCTION_BASE_URL = 'https://adocag1-aea3b8e9fvg3bfhk.canadacentral-01.azurewebsites.net';
+const PRODUCTION_BASE_URL = 'https://adocag2-cmbnhrc4hncze7hd.eastus2-01.azurewebsites.net';
 const DEVELOPMENT_BASE_URL = 'http://localhost:8080';
 
 // Base URL that switches based on environment
