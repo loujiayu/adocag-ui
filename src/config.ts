@@ -1,6 +1,6 @@
 // Environment-based configuration
 const PRODUCTION_BASE_URL = 'https://adocag1-aea3b8e9fvg3bfhk.canadacentral-01.azurewebsites.net';
-const DEVELOPMENT_BASE_URL = 'http://localhost:5000';
+const DEVELOPMENT_BASE_URL = 'http://localhost:8080';
 
 // Base URL that switches based on environment
 export const BASE_URL = process.env.NODE_ENV === 'production' 
@@ -10,7 +10,7 @@ export const BASE_URL = process.env.NODE_ENV === 'production'
 // API endpoints that can be used throughout the application
 export const API_ENDPOINTS = {
   chat: `${BASE_URL}/api/chat`,
-  search: `${BASE_URL}/api/search/chat`,
+  search: `${BASE_URL}/api/search`,
 };
 
 // Function to get the full API URL for a specific endpoint

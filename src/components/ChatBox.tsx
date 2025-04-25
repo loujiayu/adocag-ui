@@ -461,9 +461,7 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
       }
       
       if (selectedRepositories && selectedRepositories.length > 0) {
-        selectedRepositories.forEach(repo => {
-          url.searchParams.append('repositories', repo);
-        });
+        url.searchParams.append('repositories', selectedRepositories.join(','));
       }
       
       url.searchParams.append('is_deep_research', isDeepResearch.toString());

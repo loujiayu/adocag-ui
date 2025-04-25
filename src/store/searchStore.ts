@@ -146,9 +146,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
       // Add common parameters
       url.searchParams.append('query', searchQuery);
       if (selectedRepositories.length > 0) {
-        selectedRepositories.forEach(repo => {
-          url.searchParams.append('repositories', repo);
-        });
+        url.searchParams.append('repositories', selectedRepositories.join(','));
       }
       url.searchParams.append('api_provider', apiProvider);
       
@@ -210,6 +208,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
               
               if (data.done) {
                 // Search completed
+                set(({ processingMessage: '' }));
                 break;
               }
             } else if (event === 'prompt') {
