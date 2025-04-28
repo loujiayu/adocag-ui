@@ -28,7 +28,8 @@ interface SearchResult {
 export const AVAILABLE_REPOSITORIES = [
   'AdsAppsCampaignUI',
   'AdsAppsMT',
-  'AdsAppsDB'
+  'AdsAppsDB',
+  'AdsAppUISharedComponents'
 ] as const;
 
 export const AVAILABLE_API_PROVIDERS = [
