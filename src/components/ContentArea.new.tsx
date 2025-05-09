@@ -35,7 +35,27 @@ const useStyles = makeStyles({
   searchBox: {
     width: '100%',
   },
-
+  suggestions: {
+    ...shorthands.padding('8px', '16px'),
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    borderBottom: `1px solid var(--colorNeutralStroke1)`,
+  },
+  suggestionChip: {
+    ...shorthands.padding('4px', '12px'),
+    ...shorthands.borderRadius('16px'),
+    backgroundColor: 'var(--colorNeutralBackground3)',
+    border: '1px solid var(--colorNeutralStroke1)',
+    fontSize: tokens.fontSizeBase200,
+    color: 'var(--colorNeutralForeground1)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: 'var(--colorNeutralBackground3Hover)',
+      transform: 'translateY(-1px)',
+    },
+  },
   results: {
     flex: 1,
     overflowY: 'auto',
@@ -139,17 +159,29 @@ interface ContentAreaProps {}
 
 interface SourceItemProps {
   source: SourceConfig;
-  index: number;
-  onUpdate: (index: number, updates: Partial<SourceConfig>) => void;
-  onDelete: (index: number) => void;
+  onUpdate: (id: string, updates: Partial<SourceConfig>) => void;
+  onDelete: (id: string) => void;
+  onSearch: (query: string) => void;
+  searchQuery: string;
   styles: ReturnType<typeof useStyles>;
 }
 
-const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDelete, styles }) => {
-  const [searchQuery, setSearchQuery] = React.useState('');
-  
+const suggestions = [
+  "Campaign",
+  "Ad",
+  "Video",
+  "Image",
+];
+
+const SourceItem: React.FC<SourceItemProps> = ({ source, onUpdate, onDelete, onSearch, searchQuery, styles }) => {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    onUpdate(index, { query: searchQuery });
+    if (event.key === 'Enter') {
+      onSearch(searchQuery);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    onSearch(suggestion);
   };
 
   return (
@@ -162,7 +194,7 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
           selectedOptions={source.repositories}
           value={source.repositories.join(', ')}
           onOptionSelect={(_ev, data) => {
-            onUpdate(index, { repositories: data.selectedOptions as Repository[] });
+            onUpdate(source.id, { repositories: data.selectedOptions as Repository[] });
           }}
         >
           {AVAILABLE_REPOSITORIES.map((repo) => (
@@ -176,7 +208,7 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
             icon={<Delete24Regular />}
             appearance="subtle"
             className={styles.deleteButton}
-            onClick={() => onDelete(index)}
+            onClick={() => onDelete(source.id)}
           />
         </div>
       </div>
@@ -186,9 +218,21 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
           className={styles.searchBox}
           placeholder="Search a topic..."
           value={searchQuery}
-          onChange={(_, data) => setSearchQuery(data.value)}
+          onChange={(_, data) => onSearch(data.value)}
           onKeyDown={handleKeyDown}
         />
+      </div>
+
+      <div className={styles.suggestions}>
+        {suggestions.map((suggestion) => (
+          <div
+            key={suggestion}
+            className={styles.suggestionChip}
+            onClick={() => handleSuggestionClick(suggestion)}
+          >
+            {suggestion}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -197,6 +241,7 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
 const ContentArea: React.FC<ContentAreaProps> = () => {
   const styles = useStyles();
   const { 
+    searchQuery, 
     isLoading, 
     error,
     sources,
@@ -208,6 +253,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
     azureOpenAIApiKey,
     azureOpenAIEndpoint,
     azureOpenAIModel,
+    setSearchQuery,
     addSource,
     updateSource,
     removeSource,
@@ -331,13 +377,14 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
       
       {/* Sources List */}
       <div className={styles.sourceList}>
-        {sources.map((source, index) => (
+        {sources.map((source) => (
           <SourceItem
-            key={index}
-            index={index}
+            key={source.id}
             source={source}
             onUpdate={updateSource}
             onDelete={removeSource}
+            onSearch={setSearchQuery}
+            searchQuery={searchQuery}
             styles={styles}
           />
         ))}

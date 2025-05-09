@@ -52,12 +52,18 @@ export type ApiProvider = typeof AVAILABLE_API_PROVIDERS[number];
 export type AzureOpenAIModel = typeof AZURE_OPENAI_MODELS[number];
 export type GoogleVertexAIModel = typeof GOOGLE_VERTEX_AI_MODELS[number];
 
+export interface SourceConfig {
+  repositories: Repository[];
+  query?: string;
+}
+
 interface SearchStore {
   searchQuery: string;
   results: SearchResult | undefined;
   isLoading: boolean;
   error: string | null;
   processingMessage: string;
+  sources: SourceConfig[];
   selectedRepositories: Repository[];
   gcpProjectName: string;
   gcpRegion: string;
@@ -75,6 +81,9 @@ interface SearchStore {
   setAzureOpenAIApiKey: (apiKey: string) => void;
   setAzureOpenAIEndpoint: (endpoint: string) => void;
   setAzureOpenAIModel: (model: string) => void;
+  addSource: (source: SourceConfig) => void;
+  updateSource: (index: number, source: Partial<SourceConfig>) => void;
+  removeSource: (index: number) => void;
   search: () => Promise<void>;
 }
 
@@ -84,6 +93,10 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   isLoading: false,
   error: null,
   processingMessage: 'Searching...',
+  sources: [{
+    repositories: ['AdsAppsCampaignUI'],
+    query: ''
+  }],
   selectedRepositories: getStorageItem<Repository[]>('searchStore.selectedRepositories', ['AdsAppsCampaignUI']),
   gcpProjectName: getStorageItem<string>('searchStore.gcpProjectName', ''),
   gcpRegion: getStorageItem<string>('searchStore.gcpRegion', ''),
@@ -125,10 +138,24 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
     setStorageItem('searchStore.azureOpenAIModel', model);
     set({ azureOpenAIModel: model });
   },
+  addSource: (source) => {
+    set({ sources: [...get().sources, source] });
+  },
+  updateSource: (index, source) => {
+    set({
+      sources: get().sources.map((s, i) => 
+        i === index ? { ...s, ...source } : s
+      )
+    });
+  },
+  removeSource: (index) => {
+    set({
+      sources: get().sources.filter((_, i) => i !== index)
+    });
+  },
   search: async () => {
     const { 
-      searchQuery, 
-      selectedRepositories, 
+      sources,
       gcpProjectName, 
       gcpRegion,
       gcpModel,
@@ -138,20 +165,12 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
       azureOpenAIModel
     } = get();
     
-    if (!searchQuery.trim()) return;
-
     set({ isLoading: true, error: null });
     try {
       const url = new URL(getApiUrl('search'));
       
-      // Add common parameters
-      url.searchParams.append('query', searchQuery);
-      if (selectedRepositories.length > 0) {
-        url.searchParams.append('repositories', selectedRepositories.join(','));
-      }
-      url.searchParams.append('api_provider', apiProvider);
-      
       // Add provider-specific parameters
+      url.searchParams.append('api_provider', apiProvider);
       if (apiProvider === 'Azure OpenAI') {
         if (azureOpenAIApiKey) url.searchParams.append('azure_api_key', azureOpenAIApiKey);
         if (azureOpenAIEndpoint) url.searchParams.append('azure_endpoint', azureOpenAIEndpoint);
@@ -161,7 +180,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
         if (gcpRegion) url.searchParams.append('gcp_region', gcpRegion);
         if (gcpModel) url.searchParams.append('gcp_model', gcpModel);
       }
-      
+
       const response = await fetch(url.toString(), {
         method: 'POST',
         headers: {
@@ -169,8 +188,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
           'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
-          query: searchQuery,
-          repositories: selectedRepositories
+          sources: sources
         }),
       });
 
