@@ -6,7 +6,8 @@ import {
   Bot24Regular, 
   Person24Regular, 
   BookmarkRegular,
-  BrainCircuit24Regular
+  BrainCircuit24Regular,
+  Copy24Regular
 } from '@fluentui/react-icons';
 import { useSearchStore } from '../store/searchStore';
 import ReactMarkdown from 'react-markdown';
@@ -179,6 +180,23 @@ const useStyles = makeStyles({
       boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
     },
   },
+  messageActions: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '8px',
+  },
+  messageButton: {
+    minWidth: 'auto',
+    height: '32px',
+    ...shorthands.padding('4px', '8px'),
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: 'var(--colorNeutralBackground3)',
+    },
+  },
   error: {
     color: 'var(--colorStatusDangerForeground1)',
     ...shorthands.padding('8px', '12px'),
@@ -290,6 +308,7 @@ interface Message {
   role: 'assistant' | 'user';
   content: string;
   saved?: boolean;
+  isComplete?: boolean; // Flag to track if message is fully received
 }
 
 interface MessageComponentProps {
@@ -299,42 +318,58 @@ interface MessageComponentProps {
   styles: any;
 }
 
-const MessageComponent: React.FC<MessageComponentProps> = memo(({ message, index, onSave, styles }) => (
-  <div className={styles.messageWrapper} data-testid={`message-${index}`}>
-    {message.role === 'assistant' && (
-      <div className={styles.avatar} data-testid={`assistant-avatar-${index}`}>
-        <Bot24Regular />
-      </div>
-    )}
-    <div 
-      className={`${styles.message} ${message.role === 'user' ? styles.userMessage : styles.aiMessage}`}
-      data-testid={`${message.role}-message-${index}`}
-    >
-      <div className={styles.markdown}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {message.content}
-        </ReactMarkdown>
-      </div>
+const MessageComponent: React.FC<MessageComponentProps> = memo(({ message, index, onSave, styles }) => {
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(message.content);
+  }, [message.content]);
+
+  return (
+    <div className={styles.messageWrapper} data-testid={`message-${index}`}>
       {message.role === 'assistant' && (
-        <Button
-          className={styles.saveButton}
-          icon={<BookmarkRegular />}
-          appearance={message.saved ? "primary" : "secondary"}
-          onClick={() => onSave(index)}
-          title={message.saved ? "Remove from notes" : "Save to notes"}
-          data-testid={`save-note-${index}`}
-        >
-          {message.saved ? "Saved" : "Save to note"}
-        </Button>
+        <div className={styles.avatar} data-testid={`assistant-avatar-${index}`}>
+          <Bot24Regular />
+        </div>
+      )}
+      <div 
+        className={`${styles.message} ${message.role === 'user' ? styles.userMessage : styles.aiMessage}`}
+        data-testid={`${message.role}-message-${index}`}
+      >
+        <div className={styles.markdown}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {message.content}
+          </ReactMarkdown>
+        </div>
+        {message.role === 'assistant' && message.isComplete && (
+          <div className={styles.messageActions}>
+            <Button
+              className={styles.messageButton}
+              icon={<Copy24Regular />}
+              appearance="transparent"
+              onClick={handleCopy}
+              title="Copy to clipboard"
+              data-testid={`copy-message-${index}`}
+            />
+            <Button
+              className={styles.messageButton}
+              icon={<BookmarkRegular />}
+              appearance={message.saved ? "primary" : "transparent"}
+              onClick={() => onSave(index)}
+              title={message.saved ? "Remove from notes" : "Save to notes"}
+              data-testid={`save-note-${index}`}
+            >
+              {message.saved ? "Saved" : "Save"}
+            </Button>
+          </div>
+        )}
+      </div>
+      {message.role === 'user' && (
+        <div className={styles.avatar} data-testid={`user-avatar-${index}`}>
+          <Person24Regular />
+        </div>
       )}
     </div>
-    {message.role === 'user' && (
-      <div className={styles.avatar} data-testid={`user-avatar-${index}`}>
-        <Person24Regular />
-      </div>
-    )}
-  </div>
-));
+  );
+});
 
 interface InputAreaProps {
   onSendMessage: (message: string) => void;
@@ -418,23 +453,24 @@ interface ChatBoxProps {}
 
 const ChatBox: React.FC<ChatBoxProps> = () => {
   const styles = useStyles();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isDeepResearch, setIsDeepResearch] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState<string>('');
   const { 
     results, 
     searchQuery, 
-    selectedRepositories,
+    sources,
     gcpProjectName,
     gcpRegion,
     gcpModel,
     apiProvider,
     azureOpenAIApiKey,
     azureOpenAIEndpoint,
-    azureOpenAIModel
+    azureOpenAIModel,
+    temperature
   } = useSearchStore();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeepResearch, setIsDeepResearch] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState<string>('');  
 
   useEffect(() => {
     if (results) {
@@ -449,22 +485,17 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
     const userMessage = { role: 'user' as const, content: message };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-    setError(null);
-
-    try {
+    setError(null);    try {
       // Build URL with query parameters
       const url = new URL(getApiUrl('chat'));
       
-      // Add query parameters
-      if (searchQuery || message) {
-        url.searchParams.append('query', searchQuery || message);
-      }
-      
-      if (selectedRepositories && selectedRepositories.length > 0) {
-        url.searchParams.append('repositories', selectedRepositories.join(','));
+      const repoLists = sources.map(s => s.repositories).flat();
+      if (repoLists.length > 0) {
+        url.searchParams.append('repositories', repoLists.join(','));
       }
       
       url.searchParams.append('is_deep_research', isDeepResearch.toString());
+      url.searchParams.append('temperature', temperature.toString());
       
       // Add provider-specific parameters
       url.searchParams.append('api_provider', apiProvider);
@@ -484,9 +515,12 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMessage]
+        },        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          sources: sources.map(s => ({
+            repositories: s.repositories,
+            query: s.query || searchQuery || message
+          }))
         }),
       });
 
@@ -530,10 +564,17 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
                   content: streamedContent
                 };
                 return newMessages;
-              });
-
-              if (data.done) {
-                setProcessingMessage(''); // Clear processing message when done
+              });              if (data.done) {
+                setProcessingMessage('');
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  newMessages[newMessages.length - 1] = {
+                    ...lastMessage,
+                    isComplete: true
+                  };
+                  return newMessages;
+                });
                 return;
               }
             } else if (event === 'processing' && data) {
@@ -559,12 +600,16 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, searchQuery, selectedRepositories, isDeepResearch, gcpProjectName, gcpRegion, gcpModel, apiProvider, azureOpenAIApiKey, azureOpenAIEndpoint, azureOpenAIModel]);
-
+  }, [messages, searchQuery, sources, isDeepResearch, gcpProjectName, gcpRegion, gcpModel, apiProvider, azureOpenAIApiKey, azureOpenAIEndpoint, azureOpenAIModel, temperature]);
   const handleSaveNote = useCallback((index: number) => {
     setMessages(prev => {
       const newMessages = [...prev];
-      newMessages[index] = { ...newMessages[index], saved: !newMessages[index].saved };
+      const message = newMessages[index];
+      newMessages[index] = {
+        ...message,
+        saved: !message.saved,
+        isComplete: true
+      };
       return newMessages;
     });
   }, []);

@@ -72,6 +72,7 @@ interface SearchStore {
   azureOpenAIApiKey: string;
   azureOpenAIEndpoint: string;
   azureOpenAIModel: string;
+  temperature: number;
   setSearchQuery: (query: string) => void;
   setSelectedRepositories: (repositories: Repository[]) => void;
   setGcpProjectName: (projectName: string) => void;
@@ -81,6 +82,7 @@ interface SearchStore {
   setAzureOpenAIApiKey: (apiKey: string) => void;
   setAzureOpenAIEndpoint: (endpoint: string) => void;
   setAzureOpenAIModel: (model: string) => void;
+  setTemperature: (temp: number) => void;
   addSource: (source: SourceConfig) => void;
   updateSource: (index: number, source: Partial<SourceConfig>) => void;
   removeSource: (index: number) => void;
@@ -93,10 +95,10 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   isLoading: false,
   error: null,
   processingMessage: 'Searching...',
-  sources: [{
+  sources: getStorageItem<SourceConfig[]>('searchStore.sources', [{
     repositories: ['AdsAppsCampaignUI'],
     query: ''
-  }],
+  }]),
   selectedRepositories: getStorageItem<Repository[]>('searchStore.selectedRepositories', ['AdsAppsCampaignUI']),
   gcpProjectName: getStorageItem<string>('searchStore.gcpProjectName', ''),
   gcpRegion: getStorageItem<string>('searchStore.gcpRegion', ''),
@@ -105,6 +107,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   azureOpenAIApiKey: getStorageItem<string>('searchStore.azureOpenAIApiKey', ''),
   azureOpenAIEndpoint: getStorageItem<string>('searchStore.azureOpenAIEndpoint', ''),
   azureOpenAIModel: getStorageItem<string>('searchStore.azureOpenAIModel', ''),
+  temperature: getStorageItem<number>('searchStore.temperature', 0.7),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedRepositories: (repositories) => {
     setStorageItem('searchStore.selectedRepositories', repositories);
@@ -138,20 +141,26 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
     setStorageItem('searchStore.azureOpenAIModel', model);
     set({ azureOpenAIModel: model });
   },
+  setTemperature: (temp) => {
+    setStorageItem('searchStore.temperature', temp);
+    set({ temperature: temp });
+  },
   addSource: (source) => {
-    set({ sources: [...get().sources, source] });
+    const newSources = [...get().sources, source];
+    setStorageItem('searchStore.sources', newSources);
+    set({ sources: newSources });
   },
   updateSource: (index, source) => {
-    set({
-      sources: get().sources.map((s, i) => 
-        i === index ? { ...s, ...source } : s
-      )
-    });
+    const newSources = get().sources.map((s, i) => 
+      i === index ? { ...s, ...source } : s
+    );
+    setStorageItem('searchStore.sources', newSources);
+    set({ sources: newSources });
   },
   removeSource: (index) => {
-    set({
-      sources: get().sources.filter((_, i) => i !== index)
-    });
+    const newSources = get().sources.filter((_, i) => i !== index);
+    setStorageItem('searchStore.sources', newSources);
+    set({ sources: newSources });
   },
   search: async () => {
     const { 

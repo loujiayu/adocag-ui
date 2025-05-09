@@ -133,24 +133,46 @@ const useStyles = makeStyles({
     width: '300px',
     maxWidth: '100%',
   },
+  settingsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '12px',
+  },
+  temperatureInput: {
+    width: '200px',
+  },
+  loadingState: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px',
+    color: 'var(--colorNeutralForeground2)',
+  },
+  error: {
+    color: 'var(--colorStatusDangerForeground1)',
+    padding: '12px 16px',
+    backgroundColor: 'var(--colorStatusDangerBackground1)',
+    borderRadius: '4px',
+    margin: '0 16px',
+  },
 });
 
 interface ContentAreaProps {}
 
 interface SourceItemProps {
-  source: SourceConfig;
+  source: {
+    repositories: Repository[];
+    query?: string;
+  };
   index: number;
-  onUpdate: (index: number, updates: Partial<SourceConfig>) => void;
+  onUpdate: (index: number, updates: Partial<{ repositories: Repository[]; query?: string }>) => void;
   onDelete: (index: number) => void;
   styles: ReturnType<typeof useStyles>;
 }
 
 const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDelete, styles }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
-  
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    onUpdate(index, { query: searchQuery });
-  };
 
   return (
     <div className={styles.sourceItem}>
@@ -186,8 +208,10 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
           className={styles.searchBox}
           placeholder="Search a topic..."
           value={searchQuery}
-          onChange={(_, data) => setSearchQuery(data.value)}
-          onKeyDown={handleKeyDown}
+          onChange={(_, data) => {
+            setSearchQuery(data.value)
+            onUpdate(index, { query: data.value })
+          }}
         />
       </div>
     </div>
@@ -197,17 +221,18 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
 const ContentArea: React.FC<ContentAreaProps> = () => {
   const styles = useStyles();
   const { 
-    isLoading, 
+    isLoading = false, 
     error,
-    sources,
-    processingMessage,
+    sources = [],
+    processingMessage = '',
     apiProvider,
-    gcpProjectName,
-    gcpRegion,
-    gcpModel,
-    azureOpenAIApiKey,
-    azureOpenAIEndpoint,
-    azureOpenAIModel,
+    gcpProjectName = '',
+    gcpRegion = '',
+    gcpModel = '',
+    azureOpenAIApiKey = '',
+    azureOpenAIEndpoint = '',
+    azureOpenAIModel = '',
+    temperature = 0.7,
     addSource,
     updateSource,
     removeSource,
@@ -218,6 +243,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
     setAzureOpenAIApiKey,
     setAzureOpenAIEndpoint,
     setAzureOpenAIModel,
+    setTemperature,
     search 
   } = useSearchStore();
 
@@ -328,6 +354,25 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
           </Combobox>
         </div>
       )}
+
+      {/* Temperature Input */}
+      <div className={styles.projectSection}>
+        <Input
+          className={styles.projectInput}
+          placeholder="Set temperature (0 to 2)"
+          type="number"
+          min={0}
+          max={2}
+          step={0.1}
+          value={temperature.toString()}
+          onChange={(_e, data) => {
+            const temp = parseFloat(data.value);
+            if (!isNaN(temp) && temp >= 0 && temp <= 2) {
+              setTemperature(temp);
+            }
+          }}
+        />
+      </div>
       
       {/* Sources List */}
       <div className={styles.sourceList}>
