@@ -10,7 +10,6 @@ import {
   ApiProvider,
   AZURE_OPENAI_MODELS,
   GOOGLE_VERTEX_AI_MODELS,
-  SourceConfig
 } from '../store/searchStore';
 
 const useStyles = makeStyles({
