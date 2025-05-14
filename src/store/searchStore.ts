@@ -270,7 +270,14 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
       });
 
       if (!response.ok) {
-        throw new Error('Search failed');
+        // Try to extract error message from response
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `Search failed with status: ${response.status}`);
+        } catch (parseError) {
+          // If we can't parse the error response, use the status text
+          throw new Error(`Search failed: ${response.statusText || response.status}`);
+        }
       }
 
       if (!response.body) {
