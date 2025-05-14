@@ -13,7 +13,6 @@ import {
   Option,
   Label,
   makeStyles,
-  shorthands
 } from '@fluentui/react-components';
 import { Settings24Regular, DismissRegular } from '@fluentui/react-icons';
 import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS } from '../store/searchStore';
