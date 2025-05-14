@@ -356,6 +356,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
 
       {/* Temperature Input */}
       <div className={styles.projectSection}>
+        <div >Model Temperature</div>
         <Input
           className={styles.projectInput}
           placeholder="Set temperature (0 to 2)"
