@@ -205,7 +205,7 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
       <div className={styles.header}>
         <SearchBox
           className={styles.searchBox}
-          placeholder="Search a topic..."
+          placeholder="Search a keyword..."
           value={searchQuery}
           onChange={(_, data) => {
             setSearchQuery(data.value)
