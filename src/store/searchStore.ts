@@ -38,6 +38,13 @@ export const AVAILABLE_API_PROVIDERS = [
   'Built In',
 ] as const;
 
+export const ASSISTANT_ROLES = [
+  'Custom',
+  'Tech Designer',
+  'Knowledge Generator',
+  'Prompt Generator'
+] as const;
+
 export const AZURE_OPENAI_MODELS = [
   'gpt-4.1',
 ] as const;
@@ -51,6 +58,39 @@ export type Repository = typeof AVAILABLE_REPOSITORIES[number];
 export type ApiProvider = typeof AVAILABLE_API_PROVIDERS[number];
 export type AzureOpenAIModel = typeof AZURE_OPENAI_MODELS[number];
 export type GoogleVertexAIModel = typeof GOOGLE_VERTEX_AI_MODELS[number];
+export type AssistantRole = typeof ASSISTANT_ROLES[number];
+
+// Get the default system prompts
+const getDefaultSystemPrompts = (): Record<AssistantRole, string> => ({
+  'Custom': 'You are a helpful AI assistant. Provide clear, concise, and accurate information.',
+  
+  'Tech Designer': `You are a technical solution designer AI assistant. Your role is to:
+1. Analyze technical requirements and constraints
+2. Propose architecture and design solutions
+3. Consider scalability, security, performance, and maintainability
+4. Provide detailed technical specifications
+5. Suggest implementation approaches with pros and cons
+Focus on practical, industry-standard solutions while being innovative when appropriate.`,
+  
+  'Knowledge Generator': `You are a knowledge generation AI assistant. Your role is to:
+1. Synthesize information from multiple sources
+2. Generate comprehensive knowledge on complex topics
+3. Structure information in a clear, logical manner
+4. Identify connections between concepts and ideas
+5. Present different perspectives and approaches
+Emphasize depth, accuracy, and pedagogical clarity in your responses.`,
+  
+  'Prompt Generator': `You are a prompt engineering AI assistant. Your role is to:
+1. Create effective prompts for AI code agents
+2. Break down complex tasks into clear instructions
+3. Include necessary context and constraints
+4. Balance specificity with room for the AI to apply its capabilities
+5. Design prompts that reduce the need for follow-up clarification
+Focus on creating prompts that produce high-quality, relevant outputs from AI coding assistants.`
+});
+
+// Initialize system prompts from localStorage or use defaults
+export const SYSTEM_PROMPTS: Record<AssistantRole, string> = getStorageItem<Record<AssistantRole, string>>('systemPrompts', getDefaultSystemPrompts());
 
 export interface SourceConfig {
   repositories: Repository[];
@@ -73,6 +113,11 @@ interface SearchStore {
   azureOpenAIEndpoint: string;
   azureOpenAIModel: string;
   temperature: number;
+  assistantRole: AssistantRole;
+  setAssistantRole: (role: AssistantRole) => void;
+  updateSystemPrompt: (role: AssistantRole, prompt: string) => void;
+  resetSystemPrompt: (role: AssistantRole) => void;
+  resetAllSystemPrompts: () => void;
   setSearchQuery: (query: string) => void;
   setSelectedRepositories: (repositories: Repository[]) => void;
   setGcpProjectName: (projectName: string) => void;
@@ -108,6 +153,29 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   azureOpenAIEndpoint: getStorageItem<string>('searchStore.azureOpenAIEndpoint', ''),
   azureOpenAIModel: getStorageItem<string>('searchStore.azureOpenAIModel', ''),
   temperature: getStorageItem<number>('searchStore.temperature', 0.7),
+  assistantRole: getStorageItem<AssistantRole>('searchStore.assistantRole', 'Custom'),
+  setAssistantRole: (role) => {
+    setStorageItem('searchStore.assistantRole', role);
+    set({ assistantRole: role });
+  },
+  updateSystemPrompt: (role, prompt) => {
+    const updatedPrompts = { ...SYSTEM_PROMPTS, [role]: prompt };
+    setStorageItem('systemPrompts', updatedPrompts);
+    // Update the global SYSTEM_PROMPTS object directly
+    Object.assign(SYSTEM_PROMPTS, updatedPrompts);
+    // No need to update state as we're modifying a mutable object
+  },
+  resetSystemPrompt: (role) => {
+    const defaultPrompts = getDefaultSystemPrompts();
+    const updatedPrompts = { ...SYSTEM_PROMPTS, [role]: defaultPrompts[role] };
+    setStorageItem('systemPrompts', updatedPrompts);
+    Object.assign(SYSTEM_PROMPTS, updatedPrompts);
+  },
+  resetAllSystemPrompts: () => {
+    const defaultPrompts = getDefaultSystemPrompts();
+    setStorageItem('systemPrompts', defaultPrompts);
+    Object.assign(SYSTEM_PROMPTS, defaultPrompts);
+  },
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedRepositories: (repositories) => {
     setStorageItem('searchStore.selectedRepositories', repositories);

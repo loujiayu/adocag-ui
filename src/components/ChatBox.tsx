@@ -1,6 +1,6 @@
 import React, { useState, useEffect, KeyboardEvent, ChangeEvent, useCallback, memo } from 'react';
 import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
-import { Button, Input, Text } from '@fluentui/react-components';
+import { Button, Input, Text, Combobox, Option } from '@fluentui/react-components';
 import { 
   Send24Regular, 
   Bot24Regular, 
@@ -9,10 +9,11 @@ import {
   BrainCircuit24Regular,
   Copy24Regular
 } from '@fluentui/react-icons';
-import { useSearchStore } from '../store/searchStore';
+import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS } from '../store/searchStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getApiUrl } from '../config';
+import SystemPromptEditor from './SystemPromptEditor';
 
 const useStyles = makeStyles({
   chatBox: {
@@ -125,8 +126,7 @@ const useStyles = makeStyles({
     ...shorthands.borderRadius('24px'),
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
+    justifyContent: 'center',  },
   deepResearchButton: {
     width: '200px',
     height: '32px',
@@ -163,6 +163,18 @@ const useStyles = makeStyles({
       opacity: 0.5,
       boxShadow: 'none',
     }
+  },
+  roleSelector: {
+    width: '180px',
+    height: '32px',
+    marginLeft: '12px',
+    border: '1px solid var(--colorNeutralStroke1)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+  },
+  controlsContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: '12px',
   },
   saveButton: {
     marginTop: '8px',
@@ -305,7 +317,7 @@ const useStyles = makeStyles({
 });
 
 interface Message {
-  role: 'assistant' | 'user';
+  role: 'assistant' | 'user' | 'system';
   content: string;
   saved?: boolean;
   isComplete?: boolean; // Flag to track if message is fully received
@@ -377,9 +389,19 @@ interface InputAreaProps {
   isDeepResearch: boolean;
   setIsDeepResearch: (isDeep: boolean) => void;
   processingMessage: string;
+  assistantRole: AssistantRole;
+  setAssistantRole: (role: AssistantRole) => void;
 }
 
-const InputArea: React.FC<InputAreaProps> = memo(({ onSendMessage, isLoading, isDeepResearch, setIsDeepResearch, processingMessage }) => {
+const InputArea: React.FC<InputAreaProps> = memo(({ 
+  onSendMessage, 
+  isLoading, 
+  isDeepResearch, 
+  setIsDeepResearch, 
+  processingMessage,
+  assistantRole,
+  setAssistantRole
+}) => {
   const styles = useStyles();
   const [inputValue, setInputValue] = useState('');
 
@@ -415,7 +437,37 @@ const InputArea: React.FC<InputAreaProps> = memo(({ onSendMessage, isLoading, is
           {processingMessage}
         </div>
       )}
-      <div className={styles.inputRow}>
+      <div className={styles.controlsContainer}>
+        <Button
+          className={styles.deepResearchButton}
+          data-testid="deep-research-button"
+          data-active={isDeepResearch}
+          appearance="secondary"
+          icon={<BrainCircuit24Regular />}
+          onClick={handleDeepResearch}
+          disabled={isLoading}
+        >
+          Deep Research
+        </Button>
+        <Combobox
+          className={styles.roleSelector}
+          data-testid="role-selector"
+          value={assistantRole}
+          onOptionSelect={(_ev, data) => {
+            if (data.optionValue) {
+              setAssistantRole(data.optionValue as AssistantRole);
+            }
+          }}
+          disabled={isLoading}
+        >
+          {ASSISTANT_ROLES.map((role) => (
+            <Option key={role} text={role} value={role}>
+              {role}
+            </Option>
+          ))}
+        </Combobox>
+        <SystemPromptEditor role={assistantRole} setRole={setAssistantRole} />
+      </div>      <div className={styles.inputRow}>
         <Input
           className={styles.input}
           data-testid="message-input"
@@ -434,17 +486,6 @@ const InputArea: React.FC<InputAreaProps> = memo(({ onSendMessage, isLoading, is
           disabled={isLoading}
         />
       </div>
-      <Button
-        className={styles.deepResearchButton}
-        data-testid="deep-research-button"
-        data-active={isDeepResearch}
-        appearance="secondary"
-        icon={<BrainCircuit24Regular />}
-        onClick={handleDeepResearch}
-        disabled={isLoading}
-      >
-        Deep Research
-      </Button>
     </div>
   );
 });
@@ -464,7 +505,9 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
     azureOpenAIApiKey,
     azureOpenAIEndpoint,
     azureOpenAIModel,
-    temperature
+    temperature,
+    assistantRole,
+    setAssistantRole
   } = useSearchStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -480,12 +523,13 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
       ]);
     }
   }, [results]);
-
   const handleSendMessage = useCallback(async (message: string) => {
     const userMessage = { role: 'user' as const, content: message };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-    setError(null);    try {
+    setError(null);    
+    
+    try {
       // Build URL with query parameters
       const url = new URL(getApiUrl('chat'));
       
@@ -508,15 +552,21 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
         if (gcpProjectName) url.searchParams.append('gcp_project_name', gcpProjectName);
         if (gcpRegion) url.searchParams.append('gcp_region', gcpRegion);
         if (gcpModel) url.searchParams.append('gcp_model', gcpModel);
-      }
+      }      // Add system prompt based on selected role
+      const systemPrompt = SYSTEM_PROMPTS[assistantRole];
 
       const response = await fetch(url.toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
-        },        body: JSON.stringify({
-          messages: [...messages, userMessage],
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages, 
+            userMessage
+          ],
           sources: sources.map(s => ({
             repositories: s.repositories,
             query: s.query || searchQuery || message
@@ -596,11 +646,10 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Chat error:', err);
-      setMessages(prev => prev.slice(0, -1));
-    } finally {
+      setMessages(prev => prev.slice(0, -1));    } finally {
       setIsLoading(false);
     }
-  }, [messages, searchQuery, sources, isDeepResearch, gcpProjectName, gcpRegion, gcpModel, apiProvider, azureOpenAIApiKey, azureOpenAIEndpoint, azureOpenAIModel, temperature]);
+  }, [messages, searchQuery, sources, isDeepResearch, gcpProjectName, gcpRegion, gcpModel, apiProvider, azureOpenAIApiKey, azureOpenAIEndpoint, azureOpenAIModel, temperature, assistantRole]);
   const handleSaveNote = useCallback((index: number) => {
     setMessages(prev => {
       const newMessages = [...prev];
@@ -646,13 +695,14 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
           </div>
         )}
       </div>
-      
-      <InputArea
+        <InputArea
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
         isDeepResearch={isDeepResearch}
         setIsDeepResearch={setIsDeepResearch}
         processingMessage={processingMessage}
+        assistantRole={assistantRole}
+        setAssistantRole={setAssistantRole}
       />
     </div>
   );
