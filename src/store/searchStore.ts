@@ -29,7 +29,8 @@ export const AVAILABLE_REPOSITORIES = [
   'AdsAppsCampaignUI',
   'AdsAppsMT',
   'AdsAppsDB',
-  'AdsAppUISharedComponents'
+  'AdsAppUISharedComponents',
+  'AdsAppUI'
 ] as const;
 
 export const AVAILABLE_API_PROVIDERS = [
