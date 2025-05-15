@@ -12,6 +12,8 @@ import {
 import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS } from '../store/searchStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { getApiUrl } from '../config';
 import SystemPromptEditor from './SystemPromptEditor';
 
@@ -268,10 +270,9 @@ const useStyles = makeStyles({
       borderRadius: '3px',
       fontSize: '0.9em',
       fontFamily: tokens.fontFamilyMonospace,
-    },
-    '& pre': {
+    },    '& pre': {
       backgroundColor: 'var(--colorNeutralBackground4)',
-      padding: '1em',
+      padding: 0, // Reduced padding because SyntaxHighlighter adds its own
       borderRadius: '6px',
       overflow: 'auto',
       marginBottom: '0.5em',
@@ -279,6 +280,10 @@ const useStyles = makeStyles({
         backgroundColor: 'transparent',
         padding: 0,
       },
+      '& div': { // SyntaxHighlighter container
+        borderRadius: '6px',
+        margin: 0, // Remove default margins from SyntaxHighlighter
+      }
     },
     '& blockquote': {
       borderLeft: '4px solid var(--colorNeutralStroke1)',
@@ -341,13 +346,32 @@ const MessageComponent: React.FC<MessageComponentProps> = memo(({ message, index
         <div className={styles.avatar} data-testid={`assistant-avatar-${index}`}>
           <Bot24Regular />
         </div>
-      )}
-      <div 
+      )}      <div 
         className={`${styles.message} ${message.role === 'user' ? styles.userMessage : styles.aiMessage}`}
         data-testid={`${message.role}-message-${index}`}
       >
-        <div className={styles.markdown}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <div className={styles.markdown}>          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({node, inline, className, children, ...props}: any) {
+                const match = /language-(\w+)/.exec(className || '');
+                return !inline && match ? (
+                  <SyntaxHighlighter
+                    style={vscDarkPlus}
+                    language={match[1]}
+                    PreTag="div"
+                    {...props}
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              }
+            }}
+          >
             {message.content}
           </ReactMarkdown>
         </div>
@@ -658,27 +682,27 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
         ...message,
         saved: !message.saved,
         isComplete: true
-      };
-      return newMessages;
+      };      return newMessages;
     });
   }, []);
-  console.log('messages', messages);
+  
   return (
     <div className={styles.chatBox} data-testid="chat-box">
       <div className={styles.chatHeader} data-testid="chat-header">
         <Text weight="semibold">AI Assistant</Text>
       </div>
-      
-      <div className={styles.chatMessages} data-testid="chat-messages">
-        {messages.map((message, index) => (
-          index != 0 && <MessageComponent
-            key={index}
-            message={message}
-            index={index}
-            onSave={handleSaveNote}
-            styles={styles}
-          />
-        ))}
+        <div className={styles.chatMessages} data-testid="chat-messages">
+        {messages.map((message, index) => 
+          index !== 0 ? (
+            <MessageComponent
+              key={index}
+              message={message}
+              index={index}
+              onSave={handleSaveNote}
+              styles={styles}
+            />
+          ) : null
+        )}
         {isLoading && (
           <div className={styles.messageWrapper} data-testid="loading-message">
             <div className={styles.avatar} data-testid="loading-avatar">
