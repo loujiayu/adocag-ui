@@ -11,6 +11,7 @@ export const BASE_URL = process.env.NODE_ENV === 'production'
 export const API_ENDPOINTS = {
   chat: `${BASE_URL}/api/chat`,
   search: `${BASE_URL}/api/search`,
+  scopeSearch: `${BASE_URL}/api/search/scope`,
 };
 
 // Function to get the full API URL for a specific endpoint

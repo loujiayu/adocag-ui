@@ -587,7 +587,7 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
         },
         body: JSON.stringify({
           messages: [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: systemPrompt + results?.systemPrompt },
             ...messages, 
             userMessage
           ],

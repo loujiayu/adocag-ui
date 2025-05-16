@@ -54,6 +54,26 @@ const useStyles = makeStyles({
     ...shorthands.borderRadius('8px'),
     ...shorthands.padding('16px'),
     boxShadow: tokens.shadow4,
+    border: '1px solid transparent',
+    transition: 'all 0.2s ease',
+  },
+  sourceItemError: {
+    border: '1px solid var(--colorStatusDangerBackground2)',
+  },
+  inputError: {
+    ...shorthands.border('1px', 'solid', 'var(--colorStatusDangerBorder2)'),
+    backgroundColor: 'var(--colorStatusDangerBackground1)',
+    '&:hover': {
+      ...shorthands.border('1px', 'solid', 'var(--colorStatusDangerBorder2)'),
+    },
+    '&:focus-within': {
+      ...shorthands.border('1px', 'solid', 'var(--colorStatusDangerBorder2)'),
+    },
+  },
+  validationMessage: {
+    color: 'var(--colorStatusDangerForeground1)',
+    fontSize: tokens.fontSizeBase200,
+    marginTop: '8px',
   },
   sourceHeader: {
     display: 'flex',
@@ -155,6 +175,22 @@ const useStyles = makeStyles({
     borderRadius: '4px',
     margin: '0 16px',
   },
+  scopeButton: {
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '300px',
+    maxWidth: '100%',
+    ...shorthands.margin('8px', '0'),
+    ...shorthands.padding('0', '16px'),
+    backgroundColor: 'transparent',
+    transition: 'all 0.2s ease',
+    '&[data-selected="true"]': {
+      backgroundColor: 'var(--colorBrandBackground)',
+      color: 'var(--colorNeutralForegroundOnBrand)',
+    },
+  },
 });
 
 interface ContentAreaProps {}
@@ -171,19 +207,27 @@ interface SourceItemProps {
 }
 
 const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDelete, styles }) => {
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const { setScopeLearning } = useSearchStore();
+  const [searchQuery, setSearchQuery] = React.useState(source.query || '');
+  const hasValidation = source.repositories.length === 0 || !searchQuery.trim();
+
+  // Helper function to update and disable scope learning
+  const handleUpdate = (updates: Partial<{ repositories: Repository[]; query?: string }>) => {
+    setScopeLearning(false);
+    onUpdate(index, updates);
+  };
 
   return (
-    <div className={styles.sourceItem}>
+    <div className={`${styles.sourceItem} ${hasValidation ? styles.sourceItemError : ''}`}>
       <div className={styles.sourceHeader}>
         <Combobox
-          className={styles.combobox}
+          className={`${styles.combobox} ${source.repositories.length === 0 ? styles.inputError : ''}`}
           multiselect
-          placeholder="Select repositories..."
+          placeholder="Select repositories (required)..."
           selectedOptions={source.repositories}
           value={source.repositories.join(', ')}
           onOptionSelect={(_ev, data) => {
-            onUpdate(index, { repositories: data.selectedOptions as Repository[] });
+            handleUpdate({ repositories: data.selectedOptions as Repository[] });
           }}
         >
           {AVAILABLE_REPOSITORIES.map((repo) => (
@@ -204,15 +248,21 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
 
       <div className={styles.header}>
         <SearchBox
-          className={styles.searchBox}
-          placeholder="Search a keyword..."
+          className={`${styles.searchBox} ${!searchQuery.trim() ? styles.inputError : ''}`}
+          placeholder="Search a keyword (required)..."
           value={searchQuery}
           onChange={(_, data) => {
-            setSearchQuery(data.value)
-            onUpdate(index, { query: data.value })
+            setSearchQuery(data.value);
+            handleUpdate({ query: data.value });
           }}
         />
       </div>
+      {hasValidation && (
+        <div className={styles.validationMessage}>
+          {source.repositories.length === 0 && "Please select at least one repository"}
+          {source.repositories.length > 0 && !searchQuery.trim() && "Please enter a search query"}
+        </div>
+      )}
     </div>
   );
 };
@@ -232,6 +282,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
     azureOpenAIEndpoint = '',
     azureOpenAIModel = '',
     temperature = 0.7,
+    scopeLearning,
     addSource,
     updateSource,
     removeSource,
@@ -243,16 +294,32 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
     setAzureOpenAIEndpoint,
     setAzureOpenAIModel,
     setTemperature,
+    setScopeLearning,
+    setError,
     search 
   } = useSearchStore();
 
   const handleSubmit = () => {
-    if (sources.length > 0) {
-      search();
+    // Skip validation if Scope Learning is enabled
+    if (!scopeLearning) {
+      // Validate that each source has at least one repository and a query
+      const invalidSources = sources.filter(source => 
+        !source.repositories.length || !source.query?.trim()
+      );
+
+      if (invalidSources.length > 0) {
+        setError('Each source must have at least one repository selected and a search query');
+        return;
+      }
     }
+
+    // Clear any previous error
+    setError(null);
+    search();
   };
 
   const handleAddSource = () => {
+    setScopeLearning(false);
     addSource({
       repositories: ['AdsAppsCampaignUI'],
     });
@@ -356,7 +423,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
 
       {/* Temperature Input */}
       <div className={styles.projectSection}>
-        <div >Model Temperature</div>
+        <div>Model Temperature</div>
         <Input
           className={styles.projectInput}
           placeholder="Set temperature (0 to 2)"
@@ -372,6 +439,17 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
             }
           }}
         />
+      </div>
+
+      {/* Scope Learning Button */}
+      <div className={styles.projectSection}>
+        <Button
+          className={styles.scopeButton}
+          data-selected={scopeLearning}
+          onClick={() => setScopeLearning(!scopeLearning)}
+        >
+          Scope Learning
+        </Button>
       </div>
       
       {/* Sources List */}
@@ -395,15 +473,13 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
           Add Source
         </Button>
 
-        {sources.length > 0 && (
-          <Button
-            className={styles.submitButton}
-            onClick={handleSubmit}
-            disabled={isLoading}
-          >
-            Submit
-          </Button>
-        )}
+        <Button
+          className={styles.submitButton}
+          onClick={handleSubmit}
+          disabled={isLoading}
+        >
+          Submit
+        </Button>
       </div>
 
       {isLoading && (

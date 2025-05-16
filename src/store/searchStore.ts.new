@@ -23,7 +23,6 @@ const setStorageItem = <T>(key: string, value: T): void => {
 interface SearchResult {
   response: string;
   prompt: string;
-  systemPrompt?: string;
 }
 
 export const AVAILABLE_REPOSITORIES = [
@@ -43,8 +42,7 @@ export const ASSISTANT_ROLES = [
   'Custom',
   'Tech Designer',
   'Knowledge Generator',
-  'Prompt Generator',
-  'Scope Generator'
+  'Prompt Generator'
 ] as const;
 
 export const AZURE_OPENAI_MODELS = [
@@ -88,27 +86,7 @@ Emphasize depth, accuracy, and pedagogical clarity in your responses.`,
 3. Include necessary context and constraints
 4. Balance specificity with room for the AI to apply its capabilities
 5. Design prompts that reduce the need for follow-up clarification
-Focus on creating prompts that produce high-quality, relevant outputs from AI coding assistants.`,
-  
-  'Scope Generator': `You are an expert programming assistant whose primary goal is to learn and apply new syntax and coding patterns based on the guidance and examples provided by the user.
-
-Instructions:
-
-1. Pay close attention to the "Syntax Guidance" and "Sample Code" sections provided by the user. Treat this information as your primary source of truth for understanding the desired syntax and coding conventions.
-2. Analyze the structure, keywords, and patterns in the "Syntax Guidance." Identify the fundamental rules and elements of the syntax.
-3. Study the "Sample Code" carefully. Understand how the syntax guidance is applied in practical examples. Pay attention to the input, the code itself, and the expected output or behavior.
-4. Infer the underlying principles and best practices demonstrated in the examples. Don't just memorize the code; strive to understand why it is written in a particular way.
-5. Ask clarifying questions if any aspect of the "Syntax Guidance" or "Sample Code" is unclear or ambiguous. It's crucial to have a solid understanding before attempting to apply the learned syntax.
-6. Once you understand the provided information, you will be able to:
-   - Generate new code snippets that adhere to the learned syntax and conventions.
-   - Explain the purpose and functionality of code written in this syntax.
-   - Identify errors or deviations from the learned syntax.
-   - Translate between this syntax and other related syntaxes if applicable.
-   - Answer questions related to the usage and application of this syntax.
-
-Your learning process will be iterative. You will continuously refine your understanding as you receive more guidance and examples.
-
-You are now ready to receive the "Syntax Guidance" and "Sample Code" from the user. Please indicate when you are ready to provide this information.`
+Focus on creating prompts that produce high-quality, relevant outputs from AI coding assistants.`
 });
 
 // Initialize system prompts from localStorage or use defaults
@@ -125,7 +103,6 @@ interface SearchStore {
   results: SearchResult | undefined;
   isLoading: boolean;
   error: string | null;
-  setError: (error: string | null) => void;
   processingMessage: string;
   sources: SourceConfig[];
   selectedRepositories: Repository[];
@@ -165,7 +142,6 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   results: undefined,
   isLoading: false,
   error: null,
-  setError: (error) => set({ error }),
   processingMessage: 'Searching...',
   sources: getStorageItem<SourceConfig[]>('searchStore.sources', [{
     repositories: ['AdsAppsCampaignUI'],
@@ -260,15 +236,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   },
   setScopeLearning: (enabled) => {
     setStorageItem('searchStore.scopeLearning', enabled);
-    if (enabled) {
-      setStorageItem('searchStore.sources', []);
-      set({ 
-        scopeLearning: enabled,
-        sources: []
-      });
-    } else {
-      set({ scopeLearning: enabled });
-    }
+    set({ scopeLearning: enabled });
   },
   search: async () => {
     const { 
@@ -279,21 +247,14 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
       apiProvider, 
       azureOpenAIApiKey,
       azureOpenAIEndpoint,
-      azureOpenAIModel,
-      scopeLearning
+      azureOpenAIModel
     } = get();
     
     set({ isLoading: true, error: null });
     try {
-      let url: URL;
-      if (scopeLearning) {
-        url = new URL(getApiUrl('scopeSearch'));
-      } else {
-        url = new URL(getApiUrl('search'));
-      }
+      const url = new URL(getApiUrl('search'));
       
-      // Only add provider-specific parameters if not in scope learning mode
-        // Add provider-specific parameters
+      // Add provider-specific parameters
       url.searchParams.append('api_provider', apiProvider);
       if (apiProvider === 'Azure OpenAI') {
         if (azureOpenAIApiKey) url.searchParams.append('azure_api_key', azureOpenAIApiKey);
@@ -311,9 +272,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
         },
-        body: scopeLearning ? JSON.stringify({
-          query: get().searchQuery
-        }) : JSON.stringify({
+        body: JSON.stringify({
           sources: sources
         }),
       });
@@ -337,7 +296,6 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
       const decoder = new TextDecoder();
       let streamedContent = '';
       let prompt = '';
-      let systemPrompt = '';
       let incompleteLine = '';
 
       while (true) {
@@ -357,7 +315,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 
             if (event === 'message' && data) {
               streamedContent += data.content;
-              set({ results: { response: streamedContent, prompt: prompt, systemPrompt: scopeLearning ? systemPrompt : '' } });
+              set({ results: { response: streamedContent, prompt: prompt } });
               
               if (data.done) {
                 // Search completed
@@ -366,9 +324,6 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
               }
             } else if (event === 'prompt') {
               prompt = data.content;
-              set({ processingMessage: data.message });
-            } else if (event === 'systemprompt') {
-              systemPrompt = data.content;
               set({ processingMessage: data.message });
             } else if (event === 'processing' && data) {
               // Update the processing message when status is 'processing'
