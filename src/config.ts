@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
   chat: `${BASE_URL}/api/chat`,
   search: `${BASE_URL}/api/search`,
   scopeSearch: `${BASE_URL}/api/search/scope`,
+  repositories: `${BASE_URL}/api/repositories`,
 };
 
 // Function to get the full API URL for a specific endpoint

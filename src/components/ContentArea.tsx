@@ -2,9 +2,9 @@ import React from 'react';
 import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
 import { SearchBox, Spinner, Combobox, Option, Input, Button } from '@fluentui/react-components';
 import { Add24Regular, Delete24Regular } from '@fluentui/react-icons';
+import { getApiUrl } from '../config';
 import { 
   useSearchStore, 
-  AVAILABLE_REPOSITORIES, 
   Repository, 
   AVAILABLE_API_PROVIDERS, 
   ApiProvider,
@@ -59,6 +59,18 @@ const useStyles = makeStyles({
   },
   sourceItemError: {
     border: '1px solid var(--colorStatusDangerBackground2)',
+  },
+  repositoryLoadingSpinner: {
+    marginRight: '8px',
+  },
+  repositoryError: {
+    color: 'var(--colorStatusDangerForeground1)',
+    fontSize: tokens.fontSizeBase200,
+    marginTop: '4px',
+  },
+  retryButton: {
+    marginTop: '8px',
+    alignSelf: 'flex-start',
   },
   inputError: {
     ...shorthands.border('1px', 'solid', 'var(--colorStatusDangerBorder2)'),
@@ -139,6 +151,22 @@ const useStyles = makeStyles({
   combobox: {
     width: '300px',
     maxWidth: '100%',
+    '& option': {
+      position: 'relative',
+      '&:hover::after': {
+        content: 'attr(title)',
+        position: 'absolute',
+        top: '100%',
+        left: '0',
+        backgroundColor: 'var(--colorNeutralBackground2)',
+        padding: '8px',
+        borderRadius: '4px',
+        boxShadow: tokens.shadow4,
+        zIndex: 1000,
+        whiteSpace: 'pre-line',
+        fontSize: tokens.fontSizeBase200,
+      }
+    }
   },
   projectSection: {
     ...shorthands.padding('12px', '16px'),
@@ -193,6 +221,16 @@ const useStyles = makeStyles({
   },
 });
 
+
+export interface RepositoryConfig {
+  name: string;
+  organization: string;
+  project: string;
+  searchPrefix: string;
+  excludedPaths: string[];
+  includedPaths: string[];
+}
+
 interface ContentAreaProps {}
 
 interface SourceItemProps {
@@ -209,7 +247,31 @@ interface SourceItemProps {
 const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDelete, styles }) => {
   const { setScopeLearning } = useSearchStore();
   const [searchQuery, setSearchQuery] = React.useState(source.query || '');
+  const [repositories, setRepositories] = React.useState<RepositoryConfig[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const hasValidation = source.repositories.length === 0 || !searchQuery.trim();
+
+  const fetchRepositories = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(getApiUrl('repositories'));
+      if (!response.ok) {
+        throw new Error('Failed to fetch repositories');
+      }
+      const repos: RepositoryConfig[] = await response.json();
+      setRepositories(repos);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to load repositories');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchRepositories();
+  }, [fetchRepositories]);
 
   // Helper function to update and disable scope learning
   const handleUpdate = (updates: Partial<{ repositories: Repository[]; query?: string }>) => {
@@ -223,16 +285,22 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
         <Combobox
           className={`${styles.combobox} ${source.repositories.length === 0 ? styles.inputError : ''}`}
           multiselect
-          placeholder="Select repositories (required)..."
+          placeholder={loading ? "Loading repositories..." : "Select repositories (required)..."}
           selectedOptions={source.repositories}
           value={source.repositories.join(', ')}
           onOptionSelect={(_ev, data) => {
             handleUpdate({ repositories: data.selectedOptions as Repository[] });
           }}
+          disabled={loading || !!error}
         >
-          {AVAILABLE_REPOSITORIES.map((repo) => (
-            <Option key={repo} text={repo} value={repo}>
-              {repo}
+          {repositories.map((repo) => (
+            <Option 
+              key={repo.name}
+              text={repo.name} 
+              value={repo.name}
+              title={`Organization: ${repo.organization}\nProject: ${repo.project}\nPrefix: ${repo.searchPrefix}`}
+            >
+              {repo.name}
             </Option>
           ))}
         </Combobox>
@@ -245,6 +313,26 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
           />
         </div>
       </div>
+
+      {loading && (
+        <div className={styles.repositoryLoadingSpinner}>
+          <Spinner size="tiny" label="Loading repositories..." />
+        </div>
+      )}
+
+      {error && (
+        <>
+          <div className={styles.repositoryError}>
+            Failed to load repositories: {error}
+          </div>
+          <Button
+            className={styles.retryButton}
+            onClick={fetchRepositories}
+          >
+            Retry
+          </Button>
+        </>
+      )}
 
       <div className={styles.header}>
         <SearchBox
@@ -321,7 +409,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
   const handleAddSource = () => {
     setScopeLearning(false);
     addSource({
-      repositories: ['AdsAppsCampaignUI'],
+      repositories: [],
     });
   };
 

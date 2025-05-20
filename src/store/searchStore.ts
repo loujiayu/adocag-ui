@@ -26,14 +26,6 @@ interface SearchResult {
   systemPrompt?: string;
 }
 
-export const AVAILABLE_REPOSITORIES = [
-  'AdsAppsCampaignUI',
-  'AdsAppsMT',
-  'AdsAppsDB',
-  'AdsAppUISharedComponents',
-  'AdsAppUI'
-] as const;
-
 export const AVAILABLE_API_PROVIDERS = [
   'Azure OpenAI',
   'Google Vertex AI',
@@ -57,7 +49,7 @@ export const GOOGLE_VERTEX_AI_MODELS = [
   'gemini-2.0-flash-001',
 ] as const;
 
-export type Repository = typeof AVAILABLE_REPOSITORIES[number];
+export type Repository = string;
 export type ApiProvider = typeof AVAILABLE_API_PROVIDERS[number];
 export type AzureOpenAIModel = typeof AZURE_OPENAI_MODELS[number];
 export type GoogleVertexAIModel = typeof GOOGLE_VERTEX_AI_MODELS[number];
@@ -161,6 +153,7 @@ interface SearchStore {
   search: () => Promise<void>;
 }
 
+// Create the store
 export const useSearchStore = create<SearchStore>((set, get) => ({
   searchQuery: '',
   results: undefined,
@@ -168,11 +161,8 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   error: null,
   setError: (error) => set({ error }),
   processingMessage: 'Searching...',
-  sources: getStorageItem<SourceConfig[]>('searchStore.sources', [{
-    repositories: ['AdsAppsCampaignUI'],
-    query: ''
-  }]),
-  selectedRepositories: getStorageItem<Repository[]>('searchStore.selectedRepositories', ['AdsAppsCampaignUI']),
+  sources: getStorageItem<SourceConfig[]>('searchStore.sources', []),
+  selectedRepositories: getStorageItem<Repository[]>('searchStore.selectedRepositories', []),
   gcpProjectName: getStorageItem<string>('searchStore.gcpProjectName', ''),
   gcpRegion: getStorageItem<string>('searchStore.gcpRegion', ''),
   gcpModel: getStorageItem<string>('searchStore.gcpModel', ''),
@@ -313,7 +303,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
           'Accept': 'text/event-stream',
         },
         body: scopeLearning ? JSON.stringify({
-          query: get().searchQuery
+          empty: get().searchQuery
         }) : JSON.stringify({
           sources: sources
         }),
@@ -362,7 +352,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
               
               if (data.done) {
                 // Search completed
-                set(({ processingMessage: '' }));
+                set({ processingMessage: '' });
                 break;
               }
             } else if (event === 'prompt') {
@@ -397,3 +387,5 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
     }
   }
 }));
+
+// No longer needed - repositories are now handled by each SourceItem component
