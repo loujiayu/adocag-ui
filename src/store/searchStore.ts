@@ -316,7 +316,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
           throw new Error(errorData.detail || `Search failed with status: ${response.status}`);
         } catch (parseError) {
           // If we can't parse the error response, use the status text
-          throw new Error(`Search failed: ${response.statusText || response.status}`);
+          throw new Error(`Search failed: ${parseError}`);
         }
       }
 
@@ -366,7 +366,7 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
               set({ processingMessage: data.message });
             } else if (event === 'error' && data) {
               set({ 
-                error: data.message || 'An error occurred during the search',
+                error: data.content || 'An error occurred during the search',
                 isLoading: false 
               });
               return;
