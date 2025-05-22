@@ -13,6 +13,7 @@ export const API_ENDPOINTS = {
   search: `${BASE_URL}/api/search`,
   scopeSearch: `${BASE_URL}/api/search/scope`,
   repositories: `${BASE_URL}/api/repositories`,
+  authCallback: `${BASE_URL}/auth/callback`,
 };
 
 // Function to get the full API URL for a specific endpoint

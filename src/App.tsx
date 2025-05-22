@@ -2,6 +2,7 @@ import { makeStyles } from '@fluentui/react-components';
 import { FluentProvider, webLightTheme, webDarkTheme } from '@fluentui/react-components';
 import ContentArea from './components/ContentArea';
 import ChatBox from './components/ChatBox';
+import AzureDevOpsAuthButton from './components/AzureDevOpsAuthButton';
 
 const useStyles = makeStyles({
   app: {
@@ -21,6 +22,13 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '12px',
+    borderBottom: '1px solid var(--colorNeutralStroke1)',
+    backgroundColor: 'var(--colorNeutralBackground2)',
   }
 });
 
@@ -35,6 +43,9 @@ function App() {
           <ContentArea />
         </div>
         <main className={styles.main}>
+          {/* <div className={styles.header}>
+            <AzureDevOpsAuthButton />
+          </div> */}
           <ChatBox />
         </main>
       </div>

@@ -20,7 +20,7 @@ const azureDevOpsConfig = {
   // Required scopes for Azure DevOps access
   scopes: [
     // Azure DevOps API access scopes
-    // "499b84ac-1321-427f-aa17-267ca6975798/vso_code", // Azure DevOps API general scope
+    "499b84ac-1321-427f-aa17-267ca6975798/user_impersonation", // Azure DevOps API general scope
     "User.Read"  // Basic user profile info
   ]
 };
