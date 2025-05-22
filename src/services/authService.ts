@@ -98,7 +98,7 @@ class AuthService {
   }
   
   // This method is called when returning from the auth flow with code and state
-  async handleAzureDevOpsCallback(code: string, state: string): Promise<boolean> {
+  async handleAzureDevOpsCallback(_: string, state: string): Promise<boolean> {
     const savedState = localStorage.getItem('azure_devops_state');
     
     // Validate state to prevent CSRF attacks

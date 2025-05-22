@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, makeStyles, Tooltip, Spinner } from '@fluentui/react-components';
+import { Button, makeStyles, Tooltip } from '@fluentui/react-components';
 import { SignOut24Regular, LockClosed24Regular } from '@fluentui/react-icons';
 import { authService } from '../services/authService';
 

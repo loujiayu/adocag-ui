@@ -2,7 +2,6 @@ import { makeStyles } from '@fluentui/react-components';
 import { FluentProvider, webLightTheme, webDarkTheme } from '@fluentui/react-components';
 import ContentArea from './components/ContentArea';
 import ChatBox from './components/ChatBox';
-import AzureDevOpsAuthButton from './components/AzureDevOpsAuthButton';
 
 const useStyles = makeStyles({
   app: {
