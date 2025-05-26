@@ -4,7 +4,9 @@ import { PublicClientApplication, Configuration, AuthenticationResult, PopupRequ
 const msalConfig: Configuration = {
   auth: {
     clientId: "29d31a2b-819a-4b71-99d5-4d0e0c99a5c7", // Client ID from your Entra ID app registration
+    // clientId: "0ee61678-6f2e-48f8-b9fe-4cd9bb73153d",
     authority: "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47", // Tenant ID
+    // authority: "https://login.microsoftonline.com/bdb40323-87e9-4c67-a697-3ebe03490bae", // Tenant ID
     redirectUri: window.location.origin,
   },
   cache: {
@@ -17,10 +19,11 @@ const msalConfig: Configuration = {
 const azureDevOpsConfig = {
   // Same client ID as your Entra ID app registration
   clientId: "29d31a2b-819a-4b71-99d5-4d0e0c99a5c7", 
+  // clientId: "0e8822b5-a8d0-4db4-9527-a68a99e277ef",
   // Required scopes for Azure DevOps access
   scopes: [
     // Azure DevOps API access scopes
-    // "499b84ac-1321-427f-aa17-267ca6975798/vso_code", // Azure DevOps API general scope
+    // "499b84ac-1321-427f-aa17-267ca6975798/.default", // Azure DevOps API general scope
     "User.Read"  // Basic user profile info
   ]
 };
@@ -32,25 +35,6 @@ class AuthService {
   constructor() {
     this.msalInstance = new PublicClientApplication(msalConfig);
     this.msalInstance.initialize();
-  }
-
-  async getAccessToken(): Promise<string> {
-    const request = {
-      scopes: ["499b84ac-1321-427f-aa17-267ca6975798/user_impersonation"],
-      account: this.msalInstance.getAllAccounts()[0], // Get the first account
-    };
-
-    let authResult: AuthenticationResult;
-    
-    try {
-      // Try to get token silently first
-      authResult = await this.msalInstance.acquireTokenSilent(request);
-    } catch (error) {
-      // If silent token acquisition fails, get token interactively
-      authResult = await this.msalInstance.acquireTokenPopup(request);
-    }
-
-    return authResult.accessToken;
   }
 
   async login(): Promise<void> {
@@ -67,9 +51,9 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
-    await this.msalInstance.logout();
-    this.azureDevOpsToken = null;
     localStorage.removeItem('azure_devops_token');
+    this.azureDevOpsToken = null;
+    await this.msalInstance.logout();
   }
   
   // Azure DevOps OAuth methods using Microsoft Entra ID
@@ -98,7 +82,7 @@ class AuthService {
   }
   
   // This method is called when returning from the auth flow with code and state
-  async handleAzureDevOpsCallback(_: string, state: string): Promise<boolean> {
+  async handleAzureDevOpsCallback(state: string): Promise<boolean> {
     const savedState = localStorage.getItem('azure_devops_state');
     
     // Validate state to prevent CSRF attacks
