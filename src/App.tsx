@@ -65,13 +65,13 @@ function App() {
         {isLoggedIn ? (
           <>
             <div className={styles.sidebar}>
-              <ContentArea 
+              <ContentArea />
+            </div>
+            <main className={styles.main}>
+              <ChatBox 
                 onLogin={() => setIsLoggedIn(true)}
                 onLogout={() => setIsLoggedIn(false)}
               />
-            </div>
-            <main className={styles.main}>
-              <ChatBox />
             </main>
           </>
         ) : (

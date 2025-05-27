@@ -16,6 +16,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { getApiUrl } from '../config';
+import AzureDevOpsAuthButton from './AzureDevOpsAuthButton';
 import SystemPromptEditor from './SystemPromptEditor';
 
 const useStyles = makeStyles({
@@ -25,11 +26,13 @@ const useStyles = makeStyles({
     height: '100%',
     backgroundColor: 'var(--colorNeutralBackground1)',
     position: 'relative',
-  },
-  chatHeader: {
+  },  chatHeader: {
     ...shorthands.padding('16px', '24px'),
     borderBottom: '1px solid var(--colorNeutralStroke1)',
     backgroundColor: 'var(--colorNeutralBackground2)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   chatMessages: {
     flex: 1,
@@ -515,9 +518,12 @@ const InputArea: React.FC<InputAreaProps> = memo(({
   );
 });
 
-interface ChatBoxProps {}
+interface ChatBoxProps {
+  onLogin?: () => void;
+  onLogout?: () => void;
+}
 
-const ChatBox: React.FC<ChatBoxProps> = () => {
+const ChatBox: React.FC<ChatBoxProps> = ({ onLogin, onLogout }) => {
   const styles = useStyles();
   const { 
     results, 
@@ -690,9 +696,12 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
   }, []);
   
   return (
-    <div className={styles.chatBox} data-testid="chat-box">
-      <div className={styles.chatHeader} data-testid="chat-header">
+    <div className={styles.chatBox} data-testid="chat-box">      <div className={styles.chatHeader} data-testid="chat-header">
         <Text weight="semibold">AI Assistant</Text>
+        <AzureDevOpsAuthButton 
+          onLogin={onLogin}
+          onLogout={onLogout}
+        />
       </div>
         <div className={styles.chatMessages} data-testid="chat-messages">
         {messages.map((message, index) => 

@@ -11,7 +11,6 @@ import {
   AZURE_OPENAI_MODELS,
   GOOGLE_VERTEX_AI_MODELS,
 } from '../store/searchStore';
-import AzureDevOpsAuthButton from './AzureDevOpsAuthButton';
 
 const useStyles = makeStyles({
   root: {
@@ -31,13 +30,6 @@ const useStyles = makeStyles({
     ...shorthands.padding('12px', '16px'),
     borderBottom: `1px solid var(--colorNeutralStroke1)`,
     backgroundColor: 'var(--colorNeutralBackground2)',
-  },
-  titleHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    ...shorthands.padding('8px', '16px'),
-    borderBottom: `1px solid var(--colorNeutralStroke1)`,
   },
   searchBox: {
     width: '100%',
@@ -239,10 +231,7 @@ export interface RepositoryConfig {
   includedPaths: string[];
 }
 
-interface ContentAreaProps {
-  onLogin?: () => void;
-  onLogout?: () => void;
-}
+interface ContentAreaProps {}
 
 interface SourceItemProps {
   source: {
@@ -366,7 +355,7 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
   );
 };
 
-const ContentArea: React.FC<ContentAreaProps> = ({ onLogin, onLogout }) => {
+const ContentArea: React.FC<ContentAreaProps> = () => {
   const styles = useStyles();
   const { 
     isLoading = false, 
@@ -426,13 +415,7 @@ const ContentArea: React.FC<ContentAreaProps> = ({ onLogin, onLogout }) => {
 
   return (
     <div className={styles.root} data-testid="content-area">
-      <div className={styles.titleHeader}>
-        <div className={styles.title}>Sources</div>
-        <AzureDevOpsAuthButton 
-          onLogin={onLogin}
-          onLogout={onLogout}
-        />
-      </div>
+      <div className={styles.title}>Sources</div>
 
       {/* Global API Provider Selection */}
       <div className={styles.header}>

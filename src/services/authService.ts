@@ -1,4 +1,4 @@
-import { PublicClientApplication, Configuration, AuthenticationResult, PopupRequest } from "@azure/msal-browser";
+import { PublicClientApplication, Configuration, PopupRequest } from "@azure/msal-browser";
 
 // Microsoft Entra ID (formerly Azure AD) configuration for MSAL
 const msalConfig: Configuration = {
