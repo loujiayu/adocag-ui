@@ -1,3 +1,6 @@
+import { useChatHistoryStore } from '../store/chatHistoryStore';
+import { SourceConfig } from '../store/searchStore';
+
 export interface ChatMessage {
   role: 'assistant' | 'user' | 'system';
   content: string;
@@ -12,6 +15,7 @@ export interface ChatSession {
   timestamp: number;
   lastUpdated: number;
   assistantRole?: string;
+  sources?: SourceConfig[];
 }
 
 const CHAT_HISTORY_KEY = 'chat_history';
@@ -31,10 +35,9 @@ class ChatHistoryService {
   private saveSessions(sessions: ChatSession[]): void {
     try {
       localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(sessions));
-      // Dispatch custom event to notify components of session updates
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('chatSessionUpdated'));
-      }
+      // Update Zustand store instead of dispatching custom event
+      const { setSessions } = useChatHistoryStore.getState();
+      setSessions(sessions);
     } catch (error) {
       console.error('Error saving chat history to localStorage:', error);
     }
@@ -70,7 +73,70 @@ class ChatHistoryService {
     return this.getSessions().sort((a, b) => b.lastUpdated - a.lastUpdated);
   }
 
-  saveSession(messages: ChatMessage[], sessionId?: string, assistantRole?: string): string {
+  // Initialize Zustand store with localStorage data
+  initializeStore(): void {
+    const sessions = this.getAllSessions();
+    const { setSessions } = useChatHistoryStore.getState();
+    setSessions(sessions);
+  }
+
+  private areSessionsEqual(session1: ChatSession, messages: ChatMessage[], assistantRole?: string, sources?: SourceConfig[]): boolean {
+    // Compare messages
+    if (session1.messages.length !== messages.length) {
+      return false;
+    }
+    
+    for (let i = 0; i < session1.messages.length; i++) {
+      const msg1 = session1.messages[i];
+      const msg2 = messages[i];
+      if (msg1.role !== msg2.role || 
+          msg1.content !== msg2.content || 
+          msg1.saved !== msg2.saved || 
+          msg1.isComplete !== msg2.isComplete) {
+        return false;
+      }
+    }
+    
+    // Compare assistant role
+    const currentAssistantRole = assistantRole || session1.assistantRole;
+    if (session1.assistantRole !== currentAssistantRole) {
+      return false;
+    }
+    
+    // Compare sources
+    const currentSources = sources || session1.sources || [];
+    const existingSources = session1.sources || [];
+    
+    if (currentSources.length !== existingSources.length) {
+      return false;
+    }
+    
+    for (let i = 0; i < currentSources.length; i++) {
+      const source1 = existingSources[i];
+      const source2 = currentSources[i];
+      
+      // Compare repositories
+      if (source1.repositories.length !== source2.repositories.length ||
+          !source1.repositories.every((repo, idx) => repo === source2.repositories[idx])) {
+        return false;
+      }
+      
+      // Compare query and scopeLearning
+      if (source1.query !== source2.query || source1.scopeLearning !== source2.scopeLearning) {
+        return false;
+      }
+    }
+    
+    // Compare title (generated from messages)
+    const newTitle = this.generateTitle(messages);
+    if (session1.title !== newTitle) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  saveSession(messages: ChatMessage[], sessionId?: string, assistantRole?: string, updateTimestamp: boolean = true, sources?: SourceConfig[]): string {
     const sessions = this.getSessions();
     const now = Date.now();
     
@@ -78,12 +144,21 @@ class ChatHistoryService {
       // Update existing session
       const sessionIndex = sessions.findIndex(s => s.id === sessionId);
       if (sessionIndex !== -1) {
+        const existingSession = sessions[sessionIndex];
+        
+        // Check if the session data has actually changed
+        if (this.areSessionsEqual(existingSession, messages, assistantRole, sources)) {
+          // No changes detected, return existing session ID without saving
+          return sessionId;
+        }
+        
         sessions[sessionIndex] = {
           ...sessions[sessionIndex],
           messages: [...messages],
-          lastUpdated: now,
+          lastUpdated: updateTimestamp ? now : sessions[sessionIndex].lastUpdated,
           title: this.generateTitle(messages),
-          assistantRole: assistantRole || sessions[sessionIndex].assistantRole
+          assistantRole: assistantRole || sessions[sessionIndex].assistantRole,
+          sources: sources || sessions[sessionIndex].sources
         };
         this.saveSessions(sessions);
         return sessionId;
@@ -97,7 +172,8 @@ class ChatHistoryService {
       messages: [...messages],
       timestamp: now,
       lastUpdated: now,
-      assistantRole
+      assistantRole,
+      sources
     };
 
     sessions.unshift(newSession);
@@ -116,6 +192,11 @@ class ChatHistoryService {
     return sessions.find(s => s.id === sessionId) || null;
   }
 
+  loadSession(sessionId: string): ChatSession | null {
+    // Load a session without updating the lastUpdated timestamp
+    return this.getSession(sessionId);
+  }
+
   deleteSession(sessionId: string): void {
     const sessions = this.getSessions();
     const updatedSessions = sessions.filter(s => s.id !== sessionId);
@@ -124,6 +205,9 @@ class ChatHistoryService {
 
   clearAllSessions(): void {
     localStorage.removeItem(CHAT_HISTORY_KEY);
+    // Update Zustand store
+    const { clearSessions } = useChatHistoryStore.getState();
+    clearSessions();
   }
 
   updateSessionTitle(sessionId: string, title: string): void {

@@ -86,10 +86,7 @@ function App() {
 
   const handleSessionSaved = (sessionId: string) => {
     setCurrentSessionId(sessionId);
-    // Force refresh of sessions list
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('chatSessionUpdated'));
-    }
+    // No need to dispatch event - Zustand store is automatically updated by chatHistoryService
   };
 
   const handleSessionChanged = (sessionId: string | undefined) => {

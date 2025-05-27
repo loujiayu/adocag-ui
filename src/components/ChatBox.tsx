@@ -9,7 +9,7 @@ import {
   BrainCircuit24Regular,
   Copy24Regular
 } from '@fluentui/react-icons';
-import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS } from '../store/searchStore';
+import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS, SourceConfig } from '../store/searchStore';
 import { authService } from '../services/authService';
 import { chatHistoryService, ChatMessage } from '../services/chatHistoryService';
 import ReactMarkdown from 'react-markdown';
@@ -536,8 +536,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   onLoadMessages,
   onClearChat 
 }) => {
-  const styles = useStyles();
-  const { 
+  const styles = useStyles();  const { 
     results, 
     searchQuery, 
     sources,
@@ -550,17 +549,17 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     azureOpenAIModel,
     temperature,
     assistantRole,
-    setAssistantRole
-  } = useSearchStore();  const [messages, setMessages] = useState<Message[]>([]);
+    setAssistantRole,
+    setSources
+  } = useSearchStore();const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeepResearch, setIsDeepResearch] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState<string>('');  
-  // Save session when messages change (debounced)
+  const [processingMessage, setProcessingMessage] = useState<string>('');    // Save session when messages change (debounced)
   useEffect(() => {
     if (messages.length > 0) {
       const timeoutId = setTimeout(() => {
-        const sessionId = chatHistoryService.saveSession(messages, currentSessionId, assistantRole);
+        const sessionId = chatHistoryService.saveSession(messages, currentSessionId, assistantRole, true, sources);
         if (!currentSessionId && onSessionSaved) {
           onSessionSaved(sessionId);
         }
@@ -568,7 +567,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
       return () => clearTimeout(timeoutId);
     }
-  }, [messages, currentSessionId, onSessionSaved, assistantRole]);
+  }, [messages, currentSessionId, onSessionSaved, assistantRole, sources]);
 
   // Handle loading messages from chat history
   useEffect(() => {
@@ -581,15 +580,17 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     setMessages(historyMessages);
     setError(null);
   }, []);
-
   // Method to load complete session with assistant role
-  const loadSession = useCallback((session: { messages: ChatMessage[], assistantRole?: string }) => {
+  const loadSession = useCallback((session: { messages: ChatMessage[], assistantRole?: string, sources?: SourceConfig[] }) => {
     setMessages(session.messages);
     if (session.assistantRole) {
       setAssistantRole(session.assistantRole as AssistantRole);
     }
+    if (session.sources) {
+      setSources(session.sources);
+    }
     setError(null);
-  }, [setAssistantRole]);
+  }, [setAssistantRole, setSources]);
 
   // Method to clear current chat
   const clearChat = useCallback(() => {

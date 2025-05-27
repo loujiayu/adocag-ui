@@ -8,7 +8,8 @@ import {
   MenuTrigger,
   MenuPopover,
   MenuList,
-  MenuItem
+  MenuItem,
+  Tooltip
 } from '@fluentui/react-components';
 import { 
   History24Regular,
@@ -17,9 +18,11 @@ import {
   Add24Regular,
   Edit24Regular,
   Save24Regular,
-  Dismiss24Regular
+  Dismiss24Regular,
+  DatabaseSearch20Regular
 } from '@fluentui/react-icons';
 import { chatHistoryService, ChatSession, ChatMessage } from '../services/chatHistoryService';
+import { useChatHistoryStore } from '../store/chatHistoryStore';
 
 const useStyles = makeStyles({
   chatHistory: {
@@ -111,6 +114,14 @@ const useStyles = makeStyles({
     ...shorthands.borderRadius('4px'),
     marginTop: '4px',
   },
+  sourcesIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginLeft: '8px',
+    color: 'var(--colorNeutralForeground3)',
+    fontSize: tokens.fontSizeBase100,
+  },
   sessionPreview: {
     fontSize: tokens.fontSizeBase100,
     color: 'var(--colorNeutralForeground2)',
@@ -181,54 +192,43 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   onSessionChanged
 }) => {
   const styles = useStyles();
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const { sessions, lastUpdated } = useChatHistoryStore();
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
 
-  const loadSessions = useCallback(() => {
-    const allSessions = chatHistoryService.getAllSessions();
-    setSessions(allSessions);
+  // Initialize store on component mount
+  useEffect(() => {
+    chatHistoryService.initializeStore();
   }, []);
 
+  // Refresh sessions when lastUpdated changes (Zustand state update)
   useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+    // This effect runs when the Zustand store is updated
+    // No need to manually load sessions as they're already in the store
+  }, [lastUpdated]);
 
-  // Refresh sessions when currentSessionId changes
-  useEffect(() => {
-    loadSessions();
-  }, [currentSessionId, loadSessions]);
-
-  // Listen for session updates
+  // Listen for localStorage changes from other tabs/windows only
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'chat_history') {
-        loadSessions();
+        chatHistoryService.initializeStore();
       }
     };
 
-    // Listen for localStorage changes from other tabs/windows
     window.addEventListener('storage', handleStorageChange);
-
-    // Also set up a custom event listener for same-tab updates
-    const handleSessionUpdate = () => {
-      loadSessions();
-    };
-
-    window.addEventListener('chatSessionUpdated', handleSessionUpdate);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('chatSessionUpdated', handleSessionUpdate);
     };
-  }, [loadSessions]);
+  }, []);
 
   const handleLoadSession = useCallback((session: ChatSession) => {
     // Use the new loadSession method if available, otherwise fallback to loadMessages
     if (typeof window !== 'undefined' && (window as any).chatBoxMethods?.loadSession) {
       (window as any).chatBoxMethods.loadSession({
         messages: session.messages,
-        assistantRole: session.assistantRole
+        assistantRole: session.assistantRole,
+        sources: session.sources
       });
     } else {
       onLoadSession(session.messages);
@@ -239,11 +239,11 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   const handleDeleteSession = useCallback((sessionId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     chatHistoryService.deleteSession(sessionId);
-    loadSessions();
+    // No need to manually load sessions - Zustand store is automatically updated
     if (currentSessionId === sessionId) {
       onSessionChanged?.(undefined);
     }
-  }, [currentSessionId, onSessionChanged, loadSessions]);
+  }, [currentSessionId, onSessionChanged]);
 
   const handleNewChat = useCallback(() => {
     onNewChat();
@@ -259,11 +259,11 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   const handleSaveTitle = useCallback((sessionId: string) => {
     if (editingTitle.trim()) {
       chatHistoryService.updateSessionTitle(sessionId, editingTitle.trim());
-      loadSessions();
+      // No need to manually load sessions - Zustand store is automatically updated
     }
     setEditingSessionId(null);
     setEditingTitle('');
-  }, [editingTitle, loadSessions]);
+  }, [editingTitle]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingSessionId(null);
@@ -385,7 +385,20 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
                 </div>
               ) : (
                 <>
-                  <Text className={styles.sessionTitle}>{session.title}</Text>
+                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                    <Text className={styles.sessionTitle}>{session.title}</Text>
+                    {session.sources && session.sources.length > 0 && (
+                      <Tooltip
+                        content={`${session.sources.length} source${session.sources.length > 1 ? 's' : ''}: ${session.sources.map(s => s.repositories.join(', ')).join('; ')}`}
+                        relationship="label"
+                      >
+                        <div className={styles.sourcesIndicator}>
+                          <DatabaseSearch20Regular />
+                          <span>{session.sources.length}</span>
+                        </div>
+                      </Tooltip>
+                    )}
+                  </div>
                   <Menu>
                     <MenuTrigger>
                       <Button
@@ -426,9 +439,6 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
                     {session.assistantRole}
                   </Text>
                 )}
-                <Text className={styles.sessionPreview}>
-                  {getSessionPreview(session.messages)}
-                </Text>
               </>
             )}
           </div>

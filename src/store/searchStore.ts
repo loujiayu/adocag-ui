@@ -147,6 +147,7 @@ interface SearchStore {
   setAzureOpenAIEndpoint: (endpoint: string) => void;
   setAzureOpenAIModel: (model: string) => void;
   setTemperature: (temp: number) => void;
+  setSources: (sources: SourceConfig[]) => void;
   addSource: (source: SourceConfig) => void;
   updateSource: (index: number, source: Partial<SourceConfig>) => void;
   removeSource: (index: number) => void;
@@ -232,6 +233,10 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
   setTemperature: (temp) => {
     setStorageItem('searchStore.temperature', temp);
     set({ temperature: temp });
+  },
+  setSources: (sources) => {
+    setStorageItem('searchStore.sources', sources);
+    set({ sources });
   },
   addSource: (source) => {
     const newSources = [...get().sources, source];
