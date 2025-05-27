@@ -65,15 +65,12 @@ function App() {
         {isLoggedIn ? (
           <>
             <div className={styles.sidebar}>
-              <ContentArea />
+              <ContentArea 
+                onLogin={() => setIsLoggedIn(true)}
+                onLogout={() => setIsLoggedIn(false)}
+              />
             </div>
             <main className={styles.main}>
-              <div className={styles.header}>
-                <AzureDevOpsAuthButton 
-                  onLogin={() => setIsLoggedIn(true)}
-                  onLogout={() => setIsLoggedIn(false)}
-                />
-              </div>
               <ChatBox />
             </main>
           </>

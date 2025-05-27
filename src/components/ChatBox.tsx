@@ -10,6 +10,7 @@ import {
   Copy24Regular
 } from '@fluentui/react-icons';
 import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS } from '../store/searchStore';
+import { authService } from '../services/authService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -577,13 +578,15 @@ const ChatBox: React.FC<ChatBoxProps> = () => {
         if (gcpRegion) url.searchParams.append('gcp_region', gcpRegion);
         if (gcpModel) url.searchParams.append('gcp_model', gcpModel);
       }      // Add system prompt based on selected role
-      const systemPrompt = SYSTEM_PROMPTS[assistantRole];
-
+      const systemPrompt = SYSTEM_PROMPTS[assistantRole];      // Get Azure DevOps token if user is logged in
+      const azureDevOpsToken = authService.getAzureDevOpsToken();
+      
       const response = await fetch(url.toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
+          ...(azureDevOpsToken && { 'Authorization': `Bearer ${azureDevOpsToken}` }),
         },
         body: JSON.stringify({
           messages: [

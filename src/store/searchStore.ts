@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getApiUrl } from '../config';
+import { authService } from '../services/authService';
 
 // Helper functions for localStorage
 const getStorageItem = <T>(key: string, defaultValue: T): T => {
@@ -296,11 +297,15 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
         if (gcpModel) url.searchParams.append('gcp_model', gcpModel);
       }
 
+      // Get Azure DevOps token if user is logged in
+      const azureDevOpsToken = authService.getAzureDevOpsToken();
+      
       const response = await fetch(url.toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
+          ...(azureDevOpsToken && { 'Authorization': `Bearer ${azureDevOpsToken}` }),
         },
         body: scopeLearning ? JSON.stringify({
           empty: get().searchQuery
