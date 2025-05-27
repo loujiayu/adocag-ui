@@ -11,6 +11,7 @@ import {
 } from '@fluentui/react-icons';
 import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS } from '../store/searchStore';
 import { authService } from '../services/authService';
+import { chatHistoryService, ChatMessage } from '../services/chatHistoryService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -521,9 +522,20 @@ const InputArea: React.FC<InputAreaProps> = memo(({
 interface ChatBoxProps {
   onLogin?: () => void;
   onLogout?: () => void;
+  currentSessionId?: string;
+  onSessionSaved?: (sessionId: string) => void;
+  onLoadMessages?: (messages: ChatMessage[]) => void;
+  onClearChat?: () => void;
 }
 
-const ChatBox: React.FC<ChatBoxProps> = ({ onLogin, onLogout }) => {
+const ChatBox: React.FC<ChatBoxProps> = ({ 
+  onLogin, 
+  onLogout, 
+  currentSessionId, 
+  onSessionSaved,
+  onLoadMessages,
+  onClearChat 
+}) => {
   const styles = useStyles();
   const { 
     results, 
@@ -539,12 +551,71 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onLogin, onLogout }) => {
     temperature,
     assistantRole,
     setAssistantRole
-  } = useSearchStore();
-  const [messages, setMessages] = useState<Message[]>([]);
+  } = useSearchStore();  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeepResearch, setIsDeepResearch] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string>('');  
+  // Save session when messages change (debounced)
+  useEffect(() => {
+    if (messages.length > 0) {
+      const timeoutId = setTimeout(() => {
+        const sessionId = chatHistoryService.saveSession(messages, currentSessionId, assistantRole);
+        if (!currentSessionId && onSessionSaved) {
+          onSessionSaved(sessionId);
+        }
+      }, 1000); // Debounce for 1 second
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages, currentSessionId, onSessionSaved, assistantRole]);
+
+  // Handle loading messages from chat history
+  useEffect(() => {
+    if (onLoadMessages) {
+      onLoadMessages(messages);
+    }
+  }, [messages, onLoadMessages]);
+  // Method to load messages from history
+  const loadMessages = useCallback((historyMessages: ChatMessage[]) => {
+    setMessages(historyMessages);
+    setError(null);
+  }, []);
+
+  // Method to load complete session with assistant role
+  const loadSession = useCallback((session: { messages: ChatMessage[], assistantRole?: string }) => {
+    setMessages(session.messages);
+    if (session.assistantRole) {
+      setAssistantRole(session.assistantRole as AssistantRole);
+    }
+    setError(null);
+  }, [setAssistantRole]);
+
+  // Method to clear current chat
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    setError(null);
+    setIsDeepResearch(false);
+    setProcessingMessage('');
+    if (onClearChat) {
+      onClearChat();
+    }
+  }, [onClearChat]);
+  // Expose methods for parent component
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).chatBoxMethods = {
+        loadMessages,
+        loadSession,
+        clearChat
+      };
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).chatBoxMethods;
+      }
+    };
+  }, [loadMessages, loadSession, clearChat]);
 
   useEffect(() => {
     if (results) {
