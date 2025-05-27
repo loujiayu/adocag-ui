@@ -286,14 +286,6 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
     }
   }, []);
 
-  const getSessionPreview = useCallback((messages: ChatMessage[]) => {
-    const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
-    if (lastUserMessage) {
-      return lastUserMessage.content.replace(/\n/g, ' ').substring(0, 80);
-    }
-    return 'No messages';
-  }, []);
-
   if (sessions.length === 0) {
     return (
       <div className={styles.chatHistory}>
