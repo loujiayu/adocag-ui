@@ -33,6 +33,7 @@ class AuthService {
   private azureDevOpsToken: string | null = null;
   // Flag to track MSAL initialization status
   private msalInitialized = false;
+  private isInteractionInProgress = false;
   
   constructor() {
     try {
@@ -78,7 +79,7 @@ class AuthService {
         this.msalInstance.setActiveAccount(response.account);
         
         // Refresh the page to ensure the application reloads with new auth state
-        window.location.reload();
+        // window.location.reload();
       }
     } catch (error) {
       console.error("Error handling redirect response:", error);
@@ -162,6 +163,11 @@ class AuthService {
   }
 
   async initiateAzureDevOpsLogin(): Promise<void> {
+    if (this.isInteractionInProgress) {
+      console.warn("Azure DevOps login already in progress, skipping new request");
+      return;
+    }
+    this.isInteractionInProgress = true;
     try {
       // Ensure MSAL is initialized before proceeding
       await this.waitForMsalInitialization();
@@ -178,12 +184,15 @@ class AuthService {
 
       // Use MSAL for authentication with redirect flow
       await this.msalInstance.acquireTokenRedirect(request);
-      
+
       // Note: The response will be handled in a separate handler after redirect
       // See handleRedirectPromise method which should be called on app initialization
     } catch (error) {
       console.error("Azure DevOps authentication failed:", error);
       throw error;
+    } finally
+    {
+      this.isInteractionInProgress = false;
     }
   }
   

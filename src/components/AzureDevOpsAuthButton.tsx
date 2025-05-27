@@ -17,7 +17,7 @@ const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, 
     const loginStatus = authService.isLoggedInToAzureDevOps();
     setIsLoggedIn(loginStatus);
     
-    // If not logged in, automatically attempt to login
+    // // If not logged in, automatically attempt to login
     if (!loginStatus) {
       // Add a flag to localStorage to prevent redirect loops
       // Set flag to prevent multiple auto-login attempts
