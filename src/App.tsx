@@ -76,9 +76,6 @@ function App() {
           </>
         ) : (
           <div className={styles.loginContainer}>
-            <div className={styles.loginMessage}>
-              Close the tab
-            </div>
             <AzureDevOpsAuthButton 
               onLogin={() => setIsLoggedIn(true)}
               onLogout={() => setIsLoggedIn(false)}

@@ -1,14 +1,7 @@
 import React from 'react';
-import { Button, makeStyles, Tooltip } from '@fluentui/react-components';
+import { Button, Tooltip } from '@fluentui/react-components';
 import { SignOut24Regular, LockClosed24Regular } from '@fluentui/react-icons';
 import { authService } from '../services/authService';
-
-const useStyles = makeStyles({
-  authButton: {
-    marginLeft: 'auto',
-    marginRight: '16px',
-  },
-});
 
 interface AzureDevOpsAuthButtonProps {
   onLogin?: () => void;
@@ -16,7 +9,6 @@ interface AzureDevOpsAuthButtonProps {
 }
 
 const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, onLogout }) => {
-  const styles = useStyles();
   const [isLoggedIn, setIsLoggedIn] = React.useState<boolean>(false);
   const [isAuthenticating, setIsAuthenticating] = React.useState<boolean>(false);
   
@@ -25,33 +17,34 @@ const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, 
     const loginStatus = authService.isLoggedInToAzureDevOps();
     setIsLoggedIn(loginStatus);
     
-    // If user is not logged in, automatically initiate login
-    if (!loginStatus) {
-      const initiateAuth = async () => {
-        try {
-          setIsAuthenticating(true);
-          await authService.initiateAzureDevOpsLogin();
-          setIsLoggedIn(true);
-          if (onLogin) {
-            onLogin();
-          }
-        } catch (error) {
-          console.error("Failed to automatically log in:", error);
-        } finally {
-          setIsAuthenticating(false);
-        }
-      };
-      
-      initiateAuth();
-    }
+    // With redirect flow, we don't automatically initiate login here
+    // as it would cause an infinite loop of redirects.
+    // Instead, we let the user click the login button
     
-    // Handle authentication callback if state exists in URL
+    // The redirect response is handled by authService.handleRedirectResponse(),
+    // which is called in the constructor
+    
+    // If there is a state parameter in the URL, we still need to process it for backward compatibility
     const urlParams = new URLSearchParams(window.location.search);
     const state = urlParams.get('state');
     
     if (state) {
       handleAuthCallback(state);
     }
+    
+    // Check login status again after a short delay
+    // This helps ensure we pick up any changes from the redirect handling
+    const checkLoginAfterRedirect = setTimeout(() => {
+      const currentLoginStatus = authService.isLoggedInToAzureDevOps();
+      if (currentLoginStatus && !loginStatus) {
+        setIsLoggedIn(true);
+        if (onLogin) {
+          onLogin();
+        }
+      }
+    }, 500);
+    
+    return () => clearTimeout(checkLoginAfterRedirect);
   }, [onLogin]);
   
   const handleAuthCallback = async (state: string) => {
@@ -70,17 +63,20 @@ const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, 
   const handleLogin = async () => {
     setIsAuthenticating(true);
     try {
+      // With redirect flow, this will navigate away from the page
       await authService.initiateAzureDevOpsLogin();
+      
+      // The following code will only execute if the redirect doesn't happen
+      // (e.g., if there's an error or it's handled differently)
       setIsLoggedIn(true);
-      // Call the onLogin callback if provided
       if (onLogin) {
         onLogin();
       }
     } catch (error) {
       console.error("Failed to log in to Azure DevOps:", error);
-    } finally {
       setIsAuthenticating(false);
     }
+    // We don't set isAuthenticating to false here because the page will redirect
   };
   
   const handleLogout = () => {
@@ -95,7 +91,6 @@ const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, 
   return (
     <Tooltip content={isLoggedIn ? "Sign out" : "Sign in"} relationship="label">
       <Button 
-        className={styles.authButton}
         appearance={isLoggedIn ? "subtle" : "primary"}
         icon={isLoggedIn ? <SignOut24Regular /> : <LockClosed24Regular />}
         onClick={isLoggedIn ? handleLogout : handleLogin}
