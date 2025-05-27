@@ -1,13 +1,14 @@
 import React, { useState, useEffect, KeyboardEvent, ChangeEvent, useCallback, memo } from 'react';
 import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
-import { Button, Input, Text, Combobox, Option } from '@fluentui/react-components';
+import { Button, Input, Text, Combobox, Option, Link } from '@fluentui/react-components';
 import { 
   Send24Regular, 
   Bot24Regular, 
   Person24Regular, 
   BookmarkRegular,
   BrainCircuit24Regular,
-  Copy24Regular
+  Copy24Regular,
+  QuestionCircle24Regular
 } from '@fluentui/react-icons';
 import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS, SourceConfig } from '../store/searchStore';
 import { authService } from '../services/authService';
@@ -34,6 +35,23 @@ const useStyles = makeStyles({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  helperLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    color: 'var(--colorNeutralForeground3)',
+    textDecoration: 'none',
+    fontSize: tokens.fontSizeBase200,
+    '&:hover': {
+      color: 'var(--colorBrandForeground1)',
+      textDecoration: 'underline',
+    },
   },
   chatMessages: {
     flex: 1,
@@ -769,7 +787,18 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   
   return (
     <div className={styles.chatBox} data-testid="chat-box">      <div className={styles.chatHeader} data-testid="chat-header">
-        <Text weight="semibold">AI Assistant</Text>
+        <div className={styles.headerLeft}>
+          <Text weight="semibold">AI Assistant</Text>
+          <Link
+            className={styles.helperLink}
+            href="https://msasg.visualstudio.com/Bing_Ads/_wiki/wikis/eh-bingadsui-team/313328/Knowledge-Agent-ADOCAG"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <QuestionCircle24Regular />
+            <Text>Help Doc</Text>
+          </Link>
+        </div>
         <AzureDevOpsAuthButton 
           onLogin={onLogin}
           onLogout={onLogout}
