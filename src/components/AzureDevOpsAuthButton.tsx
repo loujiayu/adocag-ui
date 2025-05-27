@@ -17,9 +17,19 @@ const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, 
     const loginStatus = authService.isLoggedInToAzureDevOps();
     setIsLoggedIn(loginStatus);
     
-    // With redirect flow, we don't automatically initiate login here
-    // as it would cause an infinite loop of redirects.
-    // Instead, we let the user click the login button
+    // If not logged in, automatically attempt to login
+    if (!loginStatus) {
+      // Add a flag to localStorage to prevent redirect loops
+      // Set flag to prevent multiple auto-login attempts
+      // Attempt automatic login with a slight delay
+      setTimeout(() => {
+        console.log('Attempting automatic login to Azure DevOps...');
+        authService.initiateAzureDevOpsLogin().catch(error => {
+          console.error('Auto-login failed:', error);
+          // Clear the flag on failure to allow future attempts
+        });
+        }, 1000);
+    }
     
     // The redirect response is handled by authService.handleRedirectResponse(),
     // which is called in the constructor
@@ -82,6 +92,8 @@ const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, 
   const handleLogout = () => {
     authService.logout();
     setIsLoggedIn(false);
+    // Reset auto-login attempt flag when manually logging out
+    localStorage.removeItem('auto_login_attempted');
     // Call the onLogout callback if provided
     if (onLogout) {
       onLogout();
@@ -97,7 +109,7 @@ const AzureDevOpsAuthButton: React.FC<AzureDevOpsAuthButtonProps> = ({ onLogin, 
         disabled={isAuthenticating}
         aria-label={isLoggedIn ? "Sign out" : "Sign in"}
       >
-        {isAuthenticating ? "Authenticating..." : (isLoggedIn ? "Sign Out" : "Azure DevOps")}
+        {isAuthenticating ? "Authenticating..." : (isLoggedIn ? "Sign Out" : "Sign in")}
       </Button>
     </Tooltip>
   );

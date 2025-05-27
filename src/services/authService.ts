@@ -240,7 +240,56 @@ class AuthService {
   }
   
   isLoggedInToAzureDevOps(): boolean {
-    return !!this.getAzureDevOpsToken();
+    // Get the token
+    const token = this.getAzureDevOpsToken();
+    
+    // First check: token exists
+    if (!token) {
+      return false;
+    }
+    
+    try {
+      // Second check: verify token format (JWT should have 3 parts)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.warn('Azure DevOps token has invalid format');
+        return false;
+      }
+      
+      // Third check: check if we have an active account in MSAL
+      if (this.msalInitialized && this.msalInstance) {
+        const activeAccount = this.msalInstance.getActiveAccount();
+        if (!activeAccount) {
+          console.warn('No active account in MSAL, but token exists');
+          // We could clear the token here, but let's just return false
+          return false;
+        }
+      }
+      
+      // Additional check: try to decode the token and check expiration
+      // This is a basic check for JWT expiration
+      try {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        const expirationTime = payload.exp * 1000; // Convert to milliseconds
+        const currentTime = Date.now();
+        
+        if (expirationTime < currentTime) {
+          console.warn('Azure DevOps token has expired');
+          // Clear the expired token
+          localStorage.removeItem('azure_devops_token');
+          this.azureDevOpsToken = null;
+          return false;
+        }
+      } catch (e) {
+        console.warn('Could not decode token for expiration check:', e);
+        // Continue with the valid token if decode fails
+      }
+      
+      return true;
+    } catch (e) {
+      console.error('Error verifying Azure DevOps authentication:', e);
+      return false;
+    }
   }
   
   private generateRandomState(): string {

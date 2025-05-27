@@ -3,6 +3,7 @@ import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
 import { SearchBox, Spinner, Combobox, Option, Input, Button } from '@fluentui/react-components';
 import { Add24Regular, Delete24Regular } from '@fluentui/react-icons';
 import { getApiUrl } from '../config';
+import { authService } from '../services/authService';
 import { 
   useSearchStore, 
   Repository, 
@@ -256,7 +257,17 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, index, onUpdate, onDele
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(getApiUrl('repositories'));
+      
+      // Get Azure DevOps token from auth service
+      const azureDevOpsToken = authService.getAzureDevOpsToken();
+      
+      const response = await fetch(getApiUrl('repositories'), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(azureDevOpsToken && { 'Authorization': `Bearer ${azureDevOpsToken}` }),
+        }
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to fetch repositories');
       }
