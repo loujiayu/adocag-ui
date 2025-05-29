@@ -1,6 +1,6 @@
 import React, { useState, useEffect, KeyboardEvent, ChangeEvent, useCallback, memo } from 'react';
 import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
-import { Button, Input, Text, Combobox, Option, Link } from '@fluentui/react-components';
+import { Button, Textarea, Text, Combobox, Option, Link } from '@fluentui/react-components';
 import { 
   Send24Regular, 
   Bot24Regular, 
@@ -133,14 +133,22 @@ const useStyles = makeStyles({
     display: 'flex',
     gap: '12px',
     width: '100%',
-  },
-  input: {
+  },  input: {
     flex: 1,
     '& input': {
       height: '48px',
       ...shorthands.borderRadius('24px'),
       ...shorthands.padding('0', '24px'),
       fontSize: tokens.fontSizeBase300,
+    },
+    '& textarea': {
+      minHeight: '48px',
+      maxHeight: '120px',
+      ...shorthands.borderRadius('24px'),
+      ...shorthands.padding('12px', '24px'),
+      fontSize: tokens.fontSizeBase300,
+      resize: 'none',
+      lineHeight: '1.5',
     },
   },
   sendButton: {
@@ -451,12 +459,11 @@ const InputArea: React.FC<InputAreaProps> = memo(({
 }) => {
   const styles = useStyles();
   const [inputValue, setInputValue] = useState('');
-
-  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
   }, []);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (inputValue.trim()) {
@@ -515,7 +522,7 @@ const InputArea: React.FC<InputAreaProps> = memo(({
         </Combobox>
         <SystemPromptEditor role={assistantRole} setRole={setAssistantRole} />
       </div>      <div className={styles.inputRow}>
-        <Input
+        <Textarea
           className={styles.input}
           data-testid="message-input"
           placeholder={isDeepResearch ? "Ask a detailed question..." : "Type your message..."}
@@ -523,6 +530,7 @@ const InputArea: React.FC<InputAreaProps> = memo(({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           disabled={isLoading}
+          resize="none"
         />
         <Button
           className={styles.sendButton}
