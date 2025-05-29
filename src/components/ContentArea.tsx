@@ -547,7 +547,7 @@ const ContentArea: React.FC<ContentAreaProps> = () => {
           data-selected={scopeLearning}
           onClick={() => setScopeLearning(!scopeLearning)}
         >
-          Scope Learning
+          Scope Script
         </Button>
       </div>
       
