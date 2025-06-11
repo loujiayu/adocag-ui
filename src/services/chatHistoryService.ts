@@ -19,7 +19,7 @@ export interface ChatSession {
 }
 
 const CHAT_HISTORY_KEY = 'chat_history';
-const MAX_SESSIONS = 3;
+const MAX_SESSIONS = 10; // Default maximum number of sessions
 
 class ChatHistoryService {
   private getSessions(): ChatSession[] {
@@ -40,7 +40,7 @@ class ChatHistoryService {
         .sort((a, b) => b.lastUpdated - a.lastUpdated)
         .slice(0, MAX_SESSIONS);
       
-      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(limitedSessions));
+      this.saveToLocalStorage(limitedSessions);
       // Update Zustand store instead of dispatching custom event
       const { setSessions } = useChatHistoryStore.getState();
       setSessions(limitedSessions);
@@ -48,7 +48,23 @@ class ChatHistoryService {
       console.error('Error saving chat history to localStorage:', error);
     }
   }
-
+  
+  private saveToLocalStorage(sessions: ChatSession[]): void {
+    try {
+      if (sessions.length === 0) {
+        localStorage.removeItem(CHAT_HISTORY_KEY);
+        return;
+      }
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(sessions));
+    } catch (error) {
+      console.warn('Initial save to localStorage failed, attempting data reduction:', error);
+      
+      // Remove the oldest session and try again recursively
+      const reducedSessions = sessions.slice(0, sessions.length - 1);
+      this.saveToLocalStorage(reducedSessions);
+    }
+  }
+  
   private generateTitle(messages: ChatMessage[]): string {
     // Count user messages
     const userMessages = messages.filter(msg => msg.role === 'user');
