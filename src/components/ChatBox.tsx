@@ -1,6 +1,6 @@
 import React, { useState, useEffect, KeyboardEvent, ChangeEvent, useCallback, memo } from 'react';
 import { makeStyles, shorthands, tokens } from '@fluentui/react-components';
-import { Button, Textarea, Text, Combobox, Option, Link } from '@fluentui/react-components';
+import { Button, Textarea, Text, Combobox, Option, Link, Toast, ToastTitle, ToastBody, Toaster, useToastController, useId } from '@fluentui/react-components';
 import { 
   Send24Regular, 
   Bot24Regular, 
@@ -8,7 +8,9 @@ import {
   BookmarkRegular,
   BrainCircuit24Regular,
   Copy24Regular,
-  QuestionCircle24Regular
+  QuestionCircle24Regular,
+  Share24Regular,
+  Dismiss24Regular
 } from '@fluentui/react-icons';
 import { useSearchStore, AssistantRole, ASSISTANT_ROLES, SYSTEM_PROMPTS, SourceConfig } from '../store/searchStore';
 import { authService } from '../services/authService';
@@ -35,8 +37,12 @@ const useStyles = makeStyles({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
   },
-  headerLeft: {
+  headerRight: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
@@ -331,8 +337,7 @@ const useStyles = makeStyles({
     '& th, & td': {
       border: '1px solid var(--colorNeutralStroke1)',
       padding: '0.5em',
-    },
-    '& a': {
+    },    '& a': {
       color: 'var(--colorBrandBackground)',
       textDecoration: 'none',
       '&:hover': {
@@ -348,6 +353,35 @@ const useStyles = makeStyles({
       border: 'none',
       borderTop: '1px solid var(--colorNeutralStroke1)',
       margin: '1em 0',
+    },
+  },
+  shareButton: {
+    minWidth: 'auto',
+    height: '32px',
+    ...shorthands.padding('4px', '12px'),
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    border: '1px solid var(--colorNeutralStroke1)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: 'var(--colorNeutralBackground3)',
+      border: '1px solid var(--colorNeutralStroke1Hover)',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+    },    '&:disabled': {
+      opacity: 0.5,
+      boxShadow: 'none',
+    }
+  },
+  '@keyframes slideInUp': {
+    from: {
+      opacity: 0,
+      transform: 'translate(-50%, -40%) scale(0.95)',
+    },
+    to: {
+      opacity: 1,
+      transform: 'translate(-50%, -50%) scale(1)',
     },
   },
 });
@@ -562,7 +596,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   onLoadMessages,
   onClearChat 
 }) => {
-  const styles = useStyles();  const { 
+  const styles = useStyles();
+  const toasterId = useId("toaster");
+  const { dispatchToast, dismissToast } = useToastController(toasterId);
+  
+  const { 
     results, 
     searchQuery, 
     sources,
@@ -577,11 +615,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     assistantRole,
     setAssistantRole,
     setSources
-  } = useSearchStore();const [messages, setMessages] = useState<Message[]>([]);
+  } = useSearchStore();  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeepResearch, setIsDeepResearch] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState<string>('');    // Save session when messages change (debounced)
+  const [processingMessage, setProcessingMessage] = useState<string>('');
+  const [isSharing, setIsSharing] = useState(false);// Save session when messages change (debounced)
   useEffect(() => {
     if (messages.length > 0) {
       const timeoutId = setTimeout(() => {
@@ -643,7 +682,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       }
     };
   }, [loadMessages, loadSession, clearChat]);
-
   useEffect(() => {
     if (results) {
       setMessages([
@@ -652,6 +690,132 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       ]);
     }
   }, [results]);
+
+  const handleShareSession = useCallback(async () => {    if (!currentSessionId) {
+      const warningToastId = 'warning-no-session';
+      dispatchToast(
+        <Toast>
+          <ToastTitle action={
+            <Button
+              appearance="transparent"
+              icon={<Dismiss24Regular />}
+              size="small"
+              onClick={() => dismissToast(warningToastId)}
+            />
+          }>
+            Cannot share session
+          </ToastTitle>
+          <ToastBody>No active chat session to share</ToastBody>
+        </Toast>,
+        { intent: "warning", toastId: warningToastId }
+      );
+      return;
+    }    setIsSharing(true);
+    try {
+      const azureDevOpsToken = authService.getAzureDevOpsToken();
+      
+      // Get the complete session data instead of just the ID
+      const sessionData = chatHistoryService.getSession(currentSessionId);
+      if (!sessionData) {
+        throw new Error('Session not found');
+      }
+      
+      const response = await fetch(getApiUrl('share'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(azureDevOpsToken && { 'Authorization': `Bearer ${azureDevOpsToken}` }),
+        },
+        body: JSON.stringify({
+          chatSession: JSON.stringify(sessionData)
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to share session');
+      }
+
+      const result = await response.json();        if (result.status === 'success') {
+        // Create shareable URL with the key
+        const shareUrl = `${window.location.origin}?sharedkey=${result.key}`;
+        // Show toast with copy button instead of auto-copying
+        const successToastId = 'success-share';
+        dispatchToast(
+          <Toast>
+            <ToastTitle action={
+              <Button
+                appearance="transparent"
+                icon={<Dismiss24Regular />}
+                size="small"
+                onClick={() => dismissToast(successToastId)}
+              />
+            }>
+              Session shared successfully!
+            </ToastTitle>
+            <ToastBody>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ 
+                  wordBreak: 'break-all', 
+                  fontSize: '13px', 
+                  backgroundColor: 'var(--colorNeutralBackground4)', 
+                  padding: '8px 12px', 
+                  borderRadius: '6px',
+                  border: '1px solid var(--colorNeutralStroke2)',
+                  fontFamily: tokens.fontFamilyMonospace
+                }}>
+                  {shareUrl}
+                </div>
+                <Button
+                  appearance="primary"
+                  size="small"
+                  icon={<Copy24Regular />}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(shareUrl);
+                      dispatchToast(
+                        <Toast>
+                          <ToastTitle>Copied!</ToastTitle>
+                          <ToastBody>Share link copied to clipboard</ToastBody>
+                        </Toast>,
+                        { intent: "success", timeout: 2000 }
+                      );
+                    } catch (err) {
+                      console.warn('Copy failed:', err);
+                    }
+                  }}
+                >
+                  Copy Link
+                </Button>
+              </div>
+            </ToastBody>
+          </Toast>,
+          { intent: "success", timeout: 15000, toastId: successToastId }
+        );
+      } else {
+        throw new Error(result.message || 'Failed to share session');
+      }    } catch (err) {
+      console.error('Share error:', err);
+      const errorToastId = 'error-share';
+      dispatchToast(
+        <Toast>
+          <ToastTitle action={
+            <Button
+              appearance="transparent"
+              icon={<Dismiss24Regular />}
+              size="small"
+              onClick={() => dismissToast(errorToastId)}
+            />
+          }>
+            Failed to share session
+          </ToastTitle>
+          <ToastBody>{err instanceof Error ? err.message : 'An error occurred while sharing'}</ToastBody>
+        </Toast>,
+        { intent: "error", toastId: errorToastId }
+      );
+    } finally {
+      setIsSharing(false);
+    }
+  }, [currentSessionId, dispatchToast, dismissToast]);
   const handleSendMessage = useCallback(async (message: string) => {
     const userMessage = { role: 'user' as const, content: message };
     setMessages(prev => [...prev, userMessage]);
@@ -792,9 +956,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       };      return newMessages;
     });
   }, []);
-  
-  return (
-    <div className={styles.chatBox} data-testid="chat-box">      <div className={styles.chatHeader} data-testid="chat-header">
+    return (    <div className={styles.chatBox} data-testid="chat-box">
+      <Toaster toasterId={toasterId} />
+      <div className={styles.chatHeader} data-testid="chat-header">
         <div className={styles.headerLeft}>
           <Text weight="semibold">AI Assistant</Text>
           <Link
@@ -807,10 +971,23 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             <Text>Help Doc</Text>
           </Link>
         </div>
-        <AzureDevOpsAuthButton 
-          onLogin={onLogin}
-          onLogout={onLogout}
-        />
+        <div className={styles.headerRight}>
+          <Button
+            className={styles.shareButton}
+            icon={<Share24Regular />}
+            appearance="secondary"
+            onClick={handleShareSession}
+            disabled={!currentSessionId || isSharing}
+            title={currentSessionId ? "Share this chat session" : "No session to share"}
+            data-testid="share-button"
+          >
+            {isSharing ? "Sharing..." : "Share"}
+          </Button>
+          <AzureDevOpsAuthButton 
+            onLogin={onLogin}
+            onLogout={onLogout}
+          />
+        </div>
       </div>
         <div className={styles.chatMessages} data-testid="chat-messages">
         {messages.map((message, index) => 

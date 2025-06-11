@@ -19,13 +19,14 @@ export interface ChatSession {
 }
 
 const CHAT_HISTORY_KEY = 'chat_history';
-const MAX_SESSIONS = 10;
+const MAX_SESSIONS = 3;
 
 class ChatHistoryService {
   private getSessions(): ChatSession[] {
     try {
       const stored = localStorage.getItem(CHAT_HISTORY_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const allSessions = stored ? JSON.parse(stored) : [];
+      return allSessions;
     } catch (error) {
       console.error('Error reading chat history from localStorage:', error);
       return [];
@@ -34,10 +35,15 @@ class ChatHistoryService {
 
   private saveSessions(sessions: ChatSession[]): void {
     try {
-      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(sessions));
+      // Sort sessions by lastUpdated (newest first) and limit to MAX_SESSIONS
+      const limitedSessions = [...sessions]
+        .sort((a, b) => b.lastUpdated - a.lastUpdated)
+        .slice(0, MAX_SESSIONS);
+      
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(limitedSessions));
       // Update Zustand store instead of dispatching custom event
       const { setSessions } = useChatHistoryStore.getState();
-      setSessions(sessions);
+      setSessions(limitedSessions);
     } catch (error) {
       console.error('Error saving chat history to localStorage:', error);
     }
@@ -177,12 +183,6 @@ class ChatHistoryService {
     };
 
     sessions.unshift(newSession);
-
-    // Keep only the latest MAX_SESSIONS
-    if (sessions.length > MAX_SESSIONS) {
-      sessions.splice(MAX_SESSIONS);
-    }
-
     this.saveSessions(sessions);
     return newSession.id;
   }
